@@ -1,0 +1,14 @@
+{
+  "zona": "Valle del Guadalquivir",
+  "cultivo": "olivar",
+  "fase": "desarrollo",
+  "suelo": "franco",
+  "superficie_m2": 10000,
+  "profundidad_raices_m": 0.60,
+  "eficiencia_riego": 0.90,
+  "marco_m2_por_planta": 8,
+  "goteros_por_planta": 2,
+  "caudal_gotero_l_h": 4,
+  "nota": "Ejemplo academico. Sustituir por datos medidos de parcela y estacion AEMET real."
+}
+
