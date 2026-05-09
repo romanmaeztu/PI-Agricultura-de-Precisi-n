@@ -96,15 +96,46 @@ python -m irrigation_advisor.cli manual `
   --emitter-flow-lph 4
 ```
 
-## Variables principales
+## Comparativa de cultivos
+
+Para comparar los tres cultivos con el mismo escenario climatico, suelo y sistema de riego:
+
+```powershell
+python -m irrigation_advisor.cli compare `
+  --et0 5.6 `
+  --rain-mm 0 `
+  --stage media `
+  --soil franco `
+  --area-m2 10000 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4
+```
+
+Para obtener una tabla Markdown que pueda pegarse en resultados:
+
+```powershell
+python -m irrigation_advisor.cli compare `
+  --et0 5.6 `
+  --rain-mm 0 `
+  --stage media `
+  --soil franco `
+  --area-m2 10000 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4 `
+  --output markdown
+```
+
+Esta comparativa mantiene constantes ET0, lluvia, suelo, superficie, eficiencia y caudal. Lo que cambia es el perfil agronomico del cultivo: `Kc`, profundidad radicular, marco por planta y fraccion de agotamiento.
 
 ## Pruebas
 
 Ejecutar las pruebas desde la raiz del proyecto:
 
 ```powershell
-python -m unittest discover -s tests
+python -m unittest discover -s tests -v
 ```
+
+## Variables principales
 
 - `ET0`: evapotranspiracion de referencia, en mm/dia.
 - `Kc`: coeficiente de cultivo segun especie y fase fenologica.

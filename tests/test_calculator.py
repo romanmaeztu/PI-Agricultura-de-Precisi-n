@@ -117,6 +117,64 @@ class CalculatorTests(unittest.TestCase):
         self.assertEqual(result["soil"]["root_depth_m"], 0.7)
         self.assertEqual(result["system"]["plant_spacing_m2"], 20.0)
 
+    def test_cli_compare_returns_three_crop_ranking(self) -> None:
+        output = StringIO()
+        with redirect_stdout(output):
+            exit_code = main(
+                [
+                    "compare",
+                    "--et0",
+                    "5",
+                    "--rain-mm",
+                    "0",
+                    "--stage",
+                    "media",
+                    "--soil",
+                    "franco",
+                    "--area-m2",
+                    "1000",
+                    "--emitters-per-plant",
+                    "2",
+                    "--emitter-flow-lph",
+                    "4",
+                ]
+            )
+
+        result = json.loads(output.getvalue())
+        crops = {row["crop"]: row for row in result["crops"]}
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(set(crops), {"olivar", "citricos", "almendro"})
+        self.assertEqual(result["ranking"]["lowest_irrigation_crop"], "olivar")
+        self.assertEqual(result["ranking"]["highest_irrigation_crop"], "almendro")
+        self.assertAlmostEqual(crops["almendro"]["total_liters"], 5000.0, places=2)
+
+    def test_cli_compare_markdown_outputs_table(self) -> None:
+        output = StringIO()
+        with redirect_stdout(output):
+            exit_code = main(
+                [
+                    "compare",
+                    "--et0",
+                    "5",
+                    "--rain-mm",
+                    "0",
+                    "--stage",
+                    "media",
+                    "--soil",
+                    "franco",
+                    "--area-m2",
+                    "1000",
+                    "--output",
+                    "markdown",
+                ]
+            )
+
+        text = output.getvalue()
+        self.assertEqual(exit_code, 0)
+        self.assertIn("| Cultivo | Kc |", text)
+        self.assertIn("| almendro |", text)
+        self.assertIn("Menor demanda: olivar", text)
+
 
 if __name__ == "__main__":
     unittest.main()

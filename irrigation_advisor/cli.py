@@ -45,6 +45,29 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(crop_defaults_to_dict(), ensure_ascii=False, indent=2))
         return 0
 
+    if args.command == "compare":
+        weather_days = [
+            WeatherDay(
+                date=date.fromisoformat(args.date),
+                et0_mm=args.et0,
+                rain_mm=args.rain_mm,
+            )
+        ]
+        reports = compare_crop_reports(args=args, weather_days=weather_days)
+        comparison = comparison_to_dict(
+            reports=reports,
+            date_value=args.date,
+            et0_mm=args.et0,
+            rain_mm=args.rain_mm,
+            soil_name=args.soil,
+            stage=args.stage,
+        )
+        if args.output == "markdown":
+            print(comparison_to_markdown(comparison))
+        else:
+            print(json.dumps(comparison, ensure_ascii=False, indent=2))
+        return 0
+
     crop = build_crop_profile(crop=args.crop, stage=args.stage, kc=args.kc)
     root_depth_m = args.root_depth_m if args.root_depth_m is not None else crop.root_depth_m
     max_depletion_fraction = (
@@ -135,6 +158,22 @@ def build_parser() -> argparse.ArgumentParser:
     stations.add_argument("--name", help="Filtro por nombre de estacion.")
 
     subparsers.add_parser("crops", help="Muestra los tres perfiles de cultivo configurados.")
+
+    compare = subparsers.add_parser("compare", help="Compara riego de olivar, citricos y almendro.")
+    compare.add_argument("--date", default=date.today().isoformat())
+    compare.add_argument("--et0", type=float, required=True)
+    compare.add_argument("--rain-mm", type=float, default=0.0)
+    compare.add_argument("--stage", required=True, help="Fase comun: inicio, desarrollo, media, madurez.")
+    compare.add_argument("--soil", required=True, help="Tipo: arenoso, franco_arenoso, franco, franco_arcilloso, arcilloso.")
+    compare.add_argument("--area-m2", type=float, required=True, help="Superficie de la parcela en m2.")
+    compare.add_argument("--field-capacity", type=float)
+    compare.add_argument("--wilting-point", type=float)
+    compare.add_argument("--irrigation-efficiency", type=float, default=0.90)
+    compare.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
+    compare.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
+    compare.add_argument("--emitters-per-plant", type=int)
+    compare.add_argument("--emitter-flow-lph", type=float)
+    compare.add_argument("--output", choices=["json", "markdown"], default="json")
     return parser
 
 
@@ -207,6 +246,131 @@ def report_to_dict(report: IrrigationReport) -> dict:
             for item in report.days
         ],
     }
+
+
+def compare_crop_reports(args: argparse.Namespace, weather_days: list[WeatherDay]) -> list[IrrigationReport]:
+    reports: list[IrrigationReport] = []
+    for crop_name in CROP_DEFAULTS:
+        crop = build_crop_profile(crop=crop_name, stage=args.stage)
+        soil = build_soil_profile(
+            soil=args.soil,
+            root_depth_m=crop.root_depth_m,
+            field_capacity=args.field_capacity,
+            wilting_point=args.wilting_point,
+            max_depletion_fraction=crop.max_depletion_fraction,
+        )
+        system = IrrigationSystem(
+            area_m2=args.area_m2,
+            efficiency=args.irrigation_efficiency,
+            plant_spacing_m2=crop.plant_spacing_m2,
+            emitters_per_plant=args.emitters_per_plant,
+            emitter_flow_lph=args.emitter_flow_lph,
+        )
+        reports.append(
+            recommend_irrigation(
+                weather_days=weather_days,
+                crop=crop,
+                soil=soil,
+                system=system,
+                effective_rainfall_ratio=args.effective_rainfall_ratio,
+                current_soil_moisture=args.current_soil_moisture,
+            )
+        )
+    return reports
+
+
+def comparison_to_dict(
+    reports: list[IrrigationReport],
+    date_value: str,
+    et0_mm: float,
+    rain_mm: float,
+    soil_name: str,
+    stage: str,
+) -> dict:
+    rows = [comparison_row(report) for report in reports]
+    sorted_rows = sorted(rows, key=lambda row: row["total_liters"])
+    lowest = sorted_rows[0]
+    highest = sorted_rows[-1]
+    return {
+        "scenario": {
+            "date": date_value,
+            "et0_mm": et0_mm,
+            "rain_mm": rain_mm,
+            "soil": soil_name,
+            "stage": stage,
+        },
+        "ranking": {
+            "lowest_irrigation_crop": lowest["crop"],
+            "highest_irrigation_crop": highest["crop"],
+            "difference_liters": round(highest["total_liters"] - lowest["total_liters"], 2),
+            "difference_gross_mm": round(
+                highest["total_gross_irrigation_mm"] - lowest["total_gross_irrigation_mm"],
+                2,
+            ),
+        },
+        "crops": rows,
+    }
+
+
+def comparison_row(report: IrrigationReport) -> dict:
+    first_day = report.days[0]
+    return {
+        "crop": report.crop.name,
+        "stage": report.crop.stage,
+        "kc": round(report.crop.kc, 3),
+        "root_depth_m": report.crop.root_depth_m,
+        "plant_spacing_m2": report.crop.plant_spacing_m2,
+        "readily_available_water_mm": round(report.soil.readily_available_water_mm, 2),
+        "etc_mm": round(first_day.etc_mm, 2),
+        "gross_irrigation_mm": round(first_day.gross_irrigation_mm, 2),
+        "total_gross_irrigation_mm": round(report.total_gross_irrigation_mm, 2),
+        "total_liters": round(report.total_liters, 2),
+        "liters_per_plant": round(first_day.liters_per_plant, 2)
+        if first_day.liters_per_plant is not None
+        else None,
+        "runtime_hours": round(first_day.runtime_hours, 2)
+        if first_day.runtime_hours is not None
+        else None,
+    }
+
+
+def comparison_to_markdown(comparison: dict) -> str:
+    lines = [
+        "| Cultivo | Kc | Raices (m) | Marco (m2/planta) | ETc (mm) | Riego bruto (mm) | Litros totales | L/planta | Horas |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in comparison["crops"]:
+        lines.append(
+            "| {crop} | {kc:.3f} | {root_depth_m:.2f} | {plant_spacing_m2:.2f} | "
+            "{etc_mm:.2f} | {gross_irrigation_mm:.2f} | {total_liters:.2f} | "
+            "{liters_per_plant} | {runtime_hours} |".format(
+                crop=row["crop"],
+                kc=row["kc"],
+                root_depth_m=row["root_depth_m"],
+                plant_spacing_m2=row["plant_spacing_m2"],
+                etc_mm=row["etc_mm"],
+                gross_irrigation_mm=row["gross_irrigation_mm"],
+                total_liters=row["total_liters"],
+                liters_per_plant=format_optional_number(row["liters_per_plant"]),
+                runtime_hours=format_optional_number(row["runtime_hours"]),
+            )
+        )
+    ranking = comparison["ranking"]
+    lines.append("")
+    lines.append(
+        "Menor demanda: {lowest}. Mayor demanda: {highest}. Diferencia: {liters:.2f} L.".format(
+            lowest=ranking["lowest_irrigation_crop"],
+            highest=ranking["highest_irrigation_crop"],
+            liters=ranking["difference_liters"],
+        )
+    )
+    return "\n".join(lines)
+
+
+def format_optional_number(value: float | None) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.2f}"
 
 
 def crop_defaults_to_dict() -> dict:
