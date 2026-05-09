@@ -1,0 +1,36 @@
+{
+  "olivar": {
+    "profundidad_raices_m": 0.60,
+    "marco_m2_por_planta": 8.0,
+    "agotamiento_maximo": 0.50,
+    "kc": {
+      "inicio": 0.65,
+      "desarrollo": 0.70,
+      "media": 0.70,
+      "madurez": 0.65
+    }
+  },
+  "citricos": {
+    "profundidad_raices_m": 0.70,
+    "marco_m2_por_planta": 20.0,
+    "agotamiento_maximo": 0.45,
+    "kc": {
+      "inicio": 0.65,
+      "desarrollo": 0.70,
+      "media": 0.75,
+      "madurez": 0.70
+    }
+  },
+  "almendro": {
+    "profundidad_raices_m": 0.80,
+    "marco_m2_por_planta": 30.0,
+    "agotamiento_maximo": 0.55,
+    "kc": {
+      "inicio": 0.50,
+      "desarrollo": 0.75,
+      "media": 0.90,
+      "madurez": 0.65
+    }
+  }
+}
+

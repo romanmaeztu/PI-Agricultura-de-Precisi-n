@@ -1,4 +1,7 @@
 from datetime import date
+from contextlib import redirect_stdout
+from io import StringIO
+import json
 import unittest
 
 from irrigation_advisor.calculator import (
@@ -7,6 +10,7 @@ from irrigation_advisor.calculator import (
     estimate_et0_hargreaves,
     recommend_irrigation,
 )
+from irrigation_advisor.cli import main
 from irrigation_advisor.models import IrrigationSystem, WeatherDay
 
 
@@ -72,7 +76,47 @@ class CalculatorTests(unittest.TestCase):
         self.assertGreater(et0, 0)
         self.assertLess(et0, 10)
 
+    def test_crop_profiles_have_different_irrigation_variables(self) -> None:
+        olivar = build_crop_profile("olivar", "desarrollo")
+        citricos = build_crop_profile("citricos", "media")
+        almendro = build_crop_profile("almendro", "media")
+
+        self.assertEqual(olivar.plant_spacing_m2, 8.0)
+        self.assertEqual(citricos.plant_spacing_m2, 20.0)
+        self.assertEqual(almendro.plant_spacing_m2, 30.0)
+        self.assertLess(citricos.max_depletion_fraction, almendro.max_depletion_fraction)
+
+    def test_cli_applies_selected_crop_defaults(self) -> None:
+        output = StringIO()
+        with redirect_stdout(output):
+            exit_code = main(
+                [
+                    "manual",
+                    "--et0",
+                    "5",
+                    "--rain-mm",
+                    "0",
+                    "--crop",
+                    "citricos",
+                    "--stage",
+                    "media",
+                    "--soil",
+                    "franco",
+                    "--area-m2",
+                    "1000",
+                    "--emitters-per-plant",
+                    "2",
+                    "--emitter-flow-lph",
+                    "4",
+                ]
+            )
+
+        result = json.loads(output.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(result["crop"]["kc"], 0.75)
+        self.assertEqual(result["soil"]["root_depth_m"], 0.7)
+        self.assertEqual(result["system"]["plant_spacing_m2"], 20.0)
+
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -54,6 +54,20 @@ python -m irrigation_advisor.cli stations --province SEVILLA
 
 El comando anterior sirve para localizar el `station` que corresponde a la zona de estudio. En el modo `aemet`, la latitud de la estacion se intenta recuperar automaticamente para estimar ET0 cuando AEMET no la entregue de forma directa.
 
+Para ver los tres cultivos configurados:
+
+```powershell
+python -m irrigation_advisor.cli crops
+```
+
+Cada cultivo aplica automaticamente sus variables por defecto:
+
+| Cultivo | Profundidad raices | Marco por planta | Agotamiento maximo | Fases Kc |
+|---|---:|---:|---:|---|
+| `olivar` | 0.60 m | 8 m2 | 0.50 | inicio, desarrollo, media, madurez |
+| `citricos` | 0.70 m | 20 m2 | 0.45 | inicio, desarrollo, media, madurez |
+| `almendro` | 0.80 m | 30 m2 | 0.55 | inicio, desarrollo, media, madurez |
+
 ```powershell
 python -m irrigation_advisor.cli aemet `
   --station 5783 `
@@ -63,9 +77,7 @@ python -m irrigation_advisor.cli aemet `
   --stage desarrollo `
   --soil franco `
   --area-m2 10000 `
-  --root-depth-m 0.60 `
   --irrigation-efficiency 0.90 `
-  --plant-spacing-m2 8 `
   --emitters-per-plant 2 `
   --emitter-flow-lph 4
 ```
@@ -80,12 +92,19 @@ python -m irrigation_advisor.cli manual `
   --stage desarrollo `
   --soil franco `
   --area-m2 10000 `
-  --plant-spacing-m2 8 `
   --emitters-per-plant 2 `
   --emitter-flow-lph 4
 ```
 
 ## Variables principales
+
+## Pruebas
+
+Ejecutar las pruebas desde la raiz del proyecto:
+
+```powershell
+python -m unittest discover -s tests
+```
 
 - `ET0`: evapotranspiracion de referencia, en mm/dia.
 - `Kc`: coeficiente de cultivo segun especie y fase fenologica.
@@ -94,13 +113,15 @@ python -m irrigation_advisor.cli manual `
 - `effective_rainfall_ratio`: fraccion de lluvia considerada util. Por defecto: `0.80`.
 - `field_capacity`: capacidad de campo del suelo, en fraccion volumetrica.
 - `wilting_point`: punto de marchitez permanente, en fraccion volumetrica.
-- `root_depth_m`: profundidad efectiva de raices.
+- `root_depth_m`: profundidad efectiva de raices. Se aplica segun cultivo salvo que se sobrescriba.
+- `plant_spacing_m2`: superficie asignada por planta. Se aplica segun cultivo salvo que se sobrescriba.
+- `max_depletion_fraction`: fraccion maxima de agotamiento del agua disponible. Se aplica segun cultivo salvo que se sobrescriba.
 - `irrigation_efficiency`: eficiencia del sistema de riego. En goteo suele ser alta, pero debe justificarse.
 
 ## Limites del MVP
 
 - No sustituye la calibracion en campo con sensores de humedad.
-- Los valores de `Kc`, capacidad de campo y punto de marchitez son valores iniciales; deben ajustarse con bibliografia y datos reales de la parcela.
+- Los valores de `Kc`, profundidad radicular, marco por planta, capacidad de campo y punto de marchitez son valores iniciales; deben ajustarse con bibliografia y datos reales de la parcela.
 - AEMET no siempre publica todas las variables necesarias para Penman-Monteith. Por eso se usa Hargreaves-Samani como estimacion cuando faltan radiacion, viento o humedad.
 - El modulo calcula una recomendacion agronomica. El modelo ML debe entrenarse despues con historico suficiente y una variable objetivo validada.
 

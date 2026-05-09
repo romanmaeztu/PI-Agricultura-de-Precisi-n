@@ -7,7 +7,7 @@ from typing import Sequence
 
 from .aemet_client import AemetClient
 from .calculator import build_crop_profile, build_soil_profile, recommend_irrigation
-from .models import IrrigationReport, IrrigationSystem, WeatherDay
+from .models import CROP_DEFAULTS, IrrigationReport, IrrigationSystem, WeatherDay
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -41,18 +41,33 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "crops":
+        print(json.dumps(crop_defaults_to_dict(), ensure_ascii=False, indent=2))
+        return 0
+
+    crop = build_crop_profile(crop=args.crop, stage=args.stage, kc=args.kc)
+    root_depth_m = args.root_depth_m if args.root_depth_m is not None else crop.root_depth_m
+    max_depletion_fraction = (
+        args.max_depletion_fraction
+        if args.max_depletion_fraction is not None
+        else crop.max_depletion_fraction
+    )
     soil = build_soil_profile(
         soil=args.soil,
-        root_depth_m=args.root_depth_m,
+        root_depth_m=root_depth_m,
         field_capacity=args.field_capacity,
         wilting_point=args.wilting_point,
-        max_depletion_fraction=args.max_depletion_fraction,
+        max_depletion_fraction=max_depletion_fraction,
     )
-    crop = build_crop_profile(crop=args.crop, stage=args.stage, kc=args.kc)
+    plant_spacing_m2 = (
+        args.plant_spacing_m2
+        if args.plant_spacing_m2 is not None
+        else crop.plant_spacing_m2
+    )
     system = IrrigationSystem(
         area_m2=args.area_m2,
         efficiency=args.irrigation_efficiency,
-        plant_spacing_m2=args.plant_spacing_m2,
+        plant_spacing_m2=plant_spacing_m2,
         emitters_per_plant=args.emitters_per_plant,
         emitter_flow_lph=args.emitter_flow_lph,
     )
@@ -118,6 +133,8 @@ def build_parser() -> argparse.ArgumentParser:
     stations = subparsers.add_parser("stations", help="Busca estaciones AEMET por provincia o nombre.")
     stations.add_argument("--province", help="Filtro por provincia, por ejemplo SEVILLA.")
     stations.add_argument("--name", help="Filtro por nombre de estacion.")
+
+    subparsers.add_parser("crops", help="Muestra los tres perfiles de cultivo configurados.")
     return parser
 
 
@@ -126,14 +143,14 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--stage", required=True, help="Fase: inicio, desarrollo, media, madurez.")
     parser.add_argument("--soil", required=True, help="Tipo: arenoso, franco_arenoso, franco, franco_arcilloso, arcilloso.")
     parser.add_argument("--area-m2", type=float, required=True, help="Superficie de la parcela en m2.")
-    parser.add_argument("--root-depth-m", type=float, default=0.60)
+    parser.add_argument("--root-depth-m", type=float, help="Sobrescribe la profundidad de raices del cultivo.")
     parser.add_argument("--field-capacity", type=float)
     parser.add_argument("--wilting-point", type=float)
-    parser.add_argument("--max-depletion-fraction", type=float, default=0.50)
+    parser.add_argument("--max-depletion-fraction", type=float, help="Sobrescribe la fraccion de agotamiento del cultivo.")
     parser.add_argument("--irrigation-efficiency", type=float, default=0.90)
     parser.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
     parser.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
-    parser.add_argument("--plant-spacing-m2", type=float, help="Superficie asignada por planta.")
+    parser.add_argument("--plant-spacing-m2", type=float, help="Sobrescribe la superficie asignada por planta.")
     parser.add_argument("--emitters-per-plant", type=int)
     parser.add_argument("--emitter-flow-lph", type=float)
     parser.add_argument("--kc", type=float, help="Sobrescribe el Kc por defecto.")
@@ -145,6 +162,9 @@ def report_to_dict(report: IrrigationReport) -> dict:
             "name": report.crop.name,
             "stage": report.crop.stage,
             "kc": round(report.crop.kc, 3),
+            "default_root_depth_m": report.crop.root_depth_m,
+            "default_plant_spacing_m2": report.crop.plant_spacing_m2,
+            "default_max_depletion_fraction": report.crop.max_depletion_fraction,
         },
         "soil": {
             "name": report.soil.name,
@@ -186,6 +206,18 @@ def report_to_dict(report: IrrigationReport) -> dict:
             }
             for item in report.days
         ],
+    }
+
+
+def crop_defaults_to_dict() -> dict:
+    return {
+        crop_name: {
+            "root_depth_m": crop_data["root_depth_m"],
+            "plant_spacing_m2": crop_data["plant_spacing_m2"],
+            "max_depletion_fraction": crop_data["max_depletion_fraction"],
+            "kc": crop_data["kc"],
+        }
+        for crop_name, crop_data in CROP_DEFAULTS.items()
     }
 
 

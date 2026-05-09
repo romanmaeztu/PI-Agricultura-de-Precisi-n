@@ -14,24 +14,39 @@ SOIL_DEFAULTS: dict[str, tuple[float, float]] = {
 }
 
 
-CROP_KC_DEFAULTS: dict[str, dict[str, float]] = {
+CROP_DEFAULTS: dict[str, dict[str, object]] = {
     "olivar": {
-        "inicio": 0.65,
-        "desarrollo": 0.70,
-        "media": 0.70,
-        "madurez": 0.65,
+        "root_depth_m": 0.60,
+        "plant_spacing_m2": 8.0,
+        "max_depletion_fraction": 0.50,
+        "kc": {
+            "inicio": 0.65,
+            "desarrollo": 0.70,
+            "media": 0.70,
+            "madurez": 0.65,
+        },
     },
     "citricos": {
-        "inicio": 0.65,
-        "desarrollo": 0.70,
-        "media": 0.75,
-        "madurez": 0.70,
+        "root_depth_m": 0.70,
+        "plant_spacing_m2": 20.0,
+        "max_depletion_fraction": 0.45,
+        "kc": {
+            "inicio": 0.65,
+            "desarrollo": 0.70,
+            "media": 0.75,
+            "madurez": 0.70,
+        },
     },
     "almendro": {
-        "inicio": 0.50,
-        "desarrollo": 0.75,
-        "media": 0.90,
-        "madurez": 0.65,
+        "root_depth_m": 0.80,
+        "plant_spacing_m2": 30.0,
+        "max_depletion_fraction": 0.55,
+        "kc": {
+            "inicio": 0.50,
+            "desarrollo": 0.75,
+            "media": 0.90,
+            "madurez": 0.65,
+        },
     },
 }
 
@@ -58,6 +73,9 @@ class CropProfile:
     name: str
     stage: str
     kc: float
+    root_depth_m: float
+    plant_spacing_m2: float
+    max_depletion_fraction: float
 
 
 @dataclass(frozen=True)
@@ -121,4 +139,3 @@ class IrrigationReport:
     @property
     def total_liters(self) -> float:
         return sum(day.liters_total for day in self.days)
-

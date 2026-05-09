@@ -5,7 +5,7 @@ from datetime import date
 from typing import Iterable, Optional
 
 from .models import (
-    CROP_KC_DEFAULTS,
+    CROP_DEFAULTS,
     SOIL_DEFAULTS,
     CropProfile,
     DayRecommendation,
@@ -51,17 +51,33 @@ def build_soil_profile(
 def build_crop_profile(crop: str, stage: str, kc: Optional[float] = None) -> CropProfile:
     crop_key = crop.lower().replace(" ", "_")
     stage_key = stage.lower().replace(" ", "_")
+    if crop_key not in CROP_DEFAULTS:
+        valid = ", ".join(sorted(CROP_DEFAULTS))
+        raise ValueError(f"Cultivo no reconocido: {crop}. Opciones: {valid}")
+
+    defaults = CROP_DEFAULTS[crop_key]
+    kc_by_stage = defaults["kc"]
+    if not isinstance(kc_by_stage, dict):
+        raise ValueError(f"Perfil de cultivo invalido: {crop_key}")
+
     if kc is None:
-        if crop_key not in CROP_KC_DEFAULTS or stage_key not in CROP_KC_DEFAULTS[crop_key]:
+        if stage_key not in kc_by_stage:
             valid = {
-                crop_name: sorted(stages)
-                for crop_name, stages in CROP_KC_DEFAULTS.items()
+                crop_name: sorted(crop_data["kc"])
+                for crop_name, crop_data in CROP_DEFAULTS.items()
             }
             raise ValueError(f"Cultivo/fase no reconocido: {crop}/{stage}. Opciones: {valid}")
-        kc = CROP_KC_DEFAULTS[crop_key][stage_key]
+        kc = float(kc_by_stage[stage_key])
     if not 0 < kc < 2:
         raise ValueError("Kc debe estar entre 0 y 2")
-    return CropProfile(name=crop_key, stage=stage_key, kc=kc)
+    return CropProfile(
+        name=crop_key,
+        stage=stage_key,
+        kc=kc,
+        root_depth_m=float(defaults["root_depth_m"]),
+        plant_spacing_m2=float(defaults["plant_spacing_m2"]),
+        max_depletion_fraction=float(defaults["max_depletion_fraction"]),
+    )
 
 
 def estimate_et0_hargreaves(
@@ -178,4 +194,3 @@ def recommend_irrigation(
         days=recommendations,
         first_irrigation_mm=first_mm,
     )
-
