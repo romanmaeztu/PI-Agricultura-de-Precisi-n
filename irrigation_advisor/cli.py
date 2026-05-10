@@ -38,6 +38,34 @@ EXPORT_FIELDNAMES = [
 ]
 
 
+SUMMARY_FIELDNAMES = [
+    "estacion",
+    "nombre_estacion",
+    "provincia",
+    "fecha_inicio",
+    "fecha_fin",
+    "cultivo",
+    "fase",
+    "suelo",
+    "dias_analizados",
+    "et0_media_mm",
+    "lluvia_total_mm",
+    "tmin_media_c",
+    "tmax_media_c",
+    "tmedia_media_c",
+    "kc",
+    "riego_total_litros",
+    "riego_medio_litros_dia",
+    "riego_medio_mm_dia",
+    "etc_media_mm_dia",
+    "litros_por_planta_medio",
+    "horas_riego_medias",
+    "diferencia_litros_vs_minimo",
+    "porcentaje_incremento_vs_minimo",
+    "ranking_demanda",
+]
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -129,6 +157,25 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "end": args.end,
                     "weather_days": len(weather_days),
                     "rows": len(rows),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    if args.command == "summarize-results":
+        rows = read_export_rows(args.input_file)
+        summary_rows = summarize_export_rows(rows)
+        output_format = args.file_format or infer_summary_format(args.output_file)
+        write_summary(rows=summary_rows, output_file=args.output_file, output_format=output_format)
+        print(
+            json.dumps(
+                {
+                    "input_file": str(Path(args.input_file)),
+                    "output_file": str(Path(args.output_file)),
+                    "format": output_format,
+                    "rows": len(summary_rows),
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -280,6 +327,11 @@ def build_parser() -> argparse.ArgumentParser:
     export_aemet.add_argument("--emitter-flow-lph", type=float)
     export_aemet.add_argument("--output-file", default="data/resultados/comparativa_aemet.csv")
     export_aemet.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
+
+    summary = subparsers.add_parser("summarize-results", help="Resume un CSV/JSON de riego por cultivo.")
+    summary.add_argument("--input-file", required=True)
+    summary.add_argument("--output-file", default="data/resultados/resumen_riego.csv")
+    summary.add_argument("--file-format", choices=["csv", "json", "markdown"], help="Si se omite, se infiere por extension.")
     return parser
 
 
@@ -620,6 +672,157 @@ def infer_export_format(output_file: str) -> str:
     if suffix == ".json":
         return "json"
     return "csv"
+
+
+def read_export_rows(input_file: str) -> list[dict]:
+    input_path = Path(input_file)
+    if input_path.suffix.lower() == ".json":
+        with input_path.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+        if not isinstance(data, list):
+            raise ValueError("El JSON de entrada debe contener una lista de filas")
+        return data
+
+    with input_path.open("r", encoding="utf-8", newline="") as file:
+        return list(csv.DictReader(file))
+
+
+def summarize_export_rows(rows: list[dict]) -> list[dict]:
+    if not rows:
+        return []
+
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        crop = str(row.get("cultivo", "")).strip()
+        if not crop:
+            continue
+        grouped.setdefault(crop, []).append(row)
+
+    summary_rows = []
+    for crop, crop_rows in grouped.items():
+        dates = sorted({str(row.get("fecha", "")) for row in crop_rows if row.get("fecha")})
+        days = len(dates) or len(crop_rows)
+        total_liters = sum(to_float(row.get("litros_totales")) for row in crop_rows)
+        summary_rows.append(
+            {
+                "estacion": first_value(crop_rows, "estacion"),
+                "nombre_estacion": first_value(crop_rows, "nombre_estacion"),
+                "provincia": first_value(crop_rows, "provincia"),
+                "fecha_inicio": dates[0] if dates else None,
+                "fecha_fin": dates[-1] if dates else None,
+                "cultivo": crop,
+                "fase": first_value(crop_rows, "fase"),
+                "suelo": first_value(crop_rows, "suelo"),
+                "dias_analizados": days,
+                "et0_media_mm": round(average(crop_rows, "et0_mm"), 2),
+                "lluvia_total_mm": round(sum(to_float(row.get("lluvia_mm")) for row in crop_rows), 2),
+                "tmin_media_c": round(average(crop_rows, "tmin_c"), 2),
+                "tmax_media_c": round(average(crop_rows, "tmax_c"), 2),
+                "tmedia_media_c": round(average(crop_rows, "tmedia_c"), 2),
+                "kc": round(average(crop_rows, "kc"), 3),
+                "riego_total_litros": round(total_liters, 2),
+                "riego_medio_litros_dia": round(total_liters / days, 2) if days else 0,
+                "riego_medio_mm_dia": round(average(crop_rows, "riego_bruto_mm"), 2),
+                "etc_media_mm_dia": round(average(crop_rows, "etc_mm"), 2),
+                "litros_por_planta_medio": round(average(crop_rows, "litros_por_planta"), 2),
+                "horas_riego_medias": round(average(crop_rows, "horas_riego"), 2),
+            }
+        )
+
+    summary_rows.sort(key=lambda row: row["riego_total_litros"])
+    minimum_liters = summary_rows[0]["riego_total_litros"] if summary_rows else 0
+    for index, row in enumerate(summary_rows, start=1):
+        difference = row["riego_total_litros"] - minimum_liters
+        row["diferencia_litros_vs_minimo"] = round(difference, 2)
+        row["porcentaje_incremento_vs_minimo"] = (
+            round((difference / minimum_liters) * 100, 2) if minimum_liters else 0
+        )
+        row["ranking_demanda"] = index
+    return summary_rows
+
+
+def write_summary(rows: list[dict], output_file: str, output_format: str) -> None:
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_format == "csv":
+        with output_path.open("w", encoding="utf-8", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=SUMMARY_FIELDNAMES)
+            writer.writeheader()
+            writer.writerows(rows)
+        return
+    if output_format == "json":
+        with output_path.open("w", encoding="utf-8") as file:
+            json.dump(rows, file, ensure_ascii=False, indent=2)
+            file.write("\n")
+        return
+    if output_format == "markdown":
+        output_path.write_text(summary_to_markdown(rows), encoding="utf-8")
+        return
+    raise ValueError(f"Formato no soportado: {output_format}")
+
+
+def summary_to_markdown(rows: list[dict]) -> str:
+    lines = [
+        "| Ranking | Cultivo | Dias | ET0 media (mm) | Lluvia total (mm) | Riego total (L) | Riego medio (L/dia) | Incremento vs minimo |",
+        "|---:|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in rows:
+        lines.append(
+            "| {ranking} | {cultivo} | {dias} | {et0:.2f} | {lluvia:.2f} | {total:.2f} | {medio:.2f} | {incremento:.2f}% |".format(
+                ranking=row["ranking_demanda"],
+                cultivo=row["cultivo"],
+                dias=row["dias_analizados"],
+                et0=row["et0_media_mm"],
+                lluvia=row["lluvia_total_mm"],
+                total=row["riego_total_litros"],
+                medio=row["riego_medio_litros_dia"],
+                incremento=row["porcentaje_incremento_vs_minimo"],
+            )
+        )
+    if rows:
+        lowest = rows[0]
+        highest = rows[-1]
+        lines.append("")
+        lines.append(
+            "Menor demanda: {lowest}. Mayor demanda: {highest}. Diferencia acumulada: {difference:.2f} L.".format(
+                lowest=lowest["cultivo"],
+                highest=highest["cultivo"],
+                difference=highest["diferencia_litros_vs_minimo"],
+            )
+        )
+    return "\n".join(lines) + "\n"
+
+
+def infer_summary_format(output_file: str) -> str:
+    suffix = Path(output_file).suffix.lower()
+    if suffix == ".json":
+        return "json"
+    if suffix in {".md", ".markdown"}:
+        return "markdown"
+    return "csv"
+
+
+def first_value(rows: list[dict], key: str) -> str | None:
+    for row in rows:
+        value = row.get(key)
+        if value not in (None, ""):
+            return str(value)
+    return None
+
+
+def average(rows: list[dict], key: str) -> float:
+    values = [to_float(row.get(key)) for row in rows if row.get(key) not in (None, "")]
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
+def to_float(value: object) -> float:
+    if value in (None, ""):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    return float(str(value).replace(",", "."))
 
 
 def crop_defaults_to_dict() -> dict:

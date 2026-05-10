@@ -186,6 +186,30 @@ $env:AEMET_API_KEY = "tu_api_key"
 
 Si AEMET no devuelve ET0 directamente, el programa estima ET0 con Hargreaves-Samani a partir de temperatura maxima, minima y latitud de la estacion.
 
+## Resumen de resultados
+
+Para resumir un CSV diario por cultivo:
+
+```powershell
+python -m irrigation_advisor.cli summarize-results `
+  --input-file data/resultados/comparativa_aemet_sevilla.csv `
+  --output-file data/resultados/resumen_aemet_sevilla.csv
+```
+
+Para obtener una tabla Markdown lista para pegar en resultados:
+
+```powershell
+python -m irrigation_advisor.cli summarize-results `
+  --input-file data/resultados/comparativa_aemet_sevilla.csv `
+  --output-file data/resultados/resumen_aemet_sevilla.md
+```
+
+El resumen calcula:
+
+```text
+dias_analizados, et0_media_mm, lluvia_total_mm, riego_total_litros, riego_medio_litros_dia, riego_medio_mm_dia, litros_por_planta_medio, horas_riego_medias, diferencia_litros_vs_minimo, porcentaje_incremento_vs_minimo, ranking_demanda
+```
+
 ## Pruebas
 
 Ejecutar las pruebas desde la raiz del proyecto:

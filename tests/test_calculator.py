@@ -246,6 +246,90 @@ class CalculatorTests(unittest.TestCase):
             self.assertEqual(rows[0]["fecha"], date.today().isoformat())
             self.assertEqual({row["cultivo"] for row in rows}, {"olivar", "citricos", "almendro"})
 
+    def test_cli_summarize_results_writes_csv_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_file = Path(tmp_dir) / "comparativa.csv"
+            summary_file = Path(tmp_dir) / "resumen.csv"
+            with redirect_stdout(StringIO()):
+                main(
+                    [
+                        "export-comparison",
+                        "--et0",
+                        "5",
+                        "--rain-mm",
+                        "0",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "1000",
+                        "--output-file",
+                        str(input_file),
+                    ]
+                )
+
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "summarize-results",
+                        "--input-file",
+                        str(input_file),
+                        "--output-file",
+                        str(summary_file),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            with summary_file.open("r", encoding="utf-8", newline="") as file:
+                rows = list(csv.DictReader(file))
+
+            self.assertEqual(len(rows), 3)
+            self.assertEqual(rows[0]["cultivo"], "olivar")
+            self.assertEqual(rows[0]["ranking_demanda"], "1")
+            self.assertEqual(rows[-1]["cultivo"], "almendro")
+            self.assertGreater(float(rows[-1]["porcentaje_incremento_vs_minimo"]), 0)
+
+    def test_cli_summarize_results_writes_markdown_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_file = Path(tmp_dir) / "comparativa.csv"
+            summary_file = Path(tmp_dir) / "resumen.md"
+            with redirect_stdout(StringIO()):
+                main(
+                    [
+                        "export-comparison",
+                        "--et0",
+                        "5",
+                        "--rain-mm",
+                        "0",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "1000",
+                        "--output-file",
+                        str(input_file),
+                    ]
+                )
+
+            with redirect_stdout(StringIO()):
+                exit_code = main(
+                    [
+                        "summarize-results",
+                        "--input-file",
+                        str(input_file),
+                        "--output-file",
+                        str(summary_file),
+                    ]
+                )
+
+            text = summary_file.read_text(encoding="utf-8")
+            self.assertEqual(exit_code, 0)
+            self.assertIn("| Ranking | Cultivo |", text)
+            self.assertIn("Menor demanda: olivar", text)
+
     def test_daily_export_rows_include_station_and_dates(self) -> None:
         args = SimpleNamespace(
             stage="media",

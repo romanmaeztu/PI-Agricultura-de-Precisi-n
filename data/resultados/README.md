@@ -28,3 +28,11 @@ python -m irrigation_advisor.cli export-aemet-comparison `
   --area-m2 10000 `
   --output-file data/resultados/comparativa_aemet_sevilla.csv
 ```
+
+Para resumir la comparativa:
+
+```powershell
+python -m irrigation_advisor.cli summarize-results `
+  --input-file data/resultados/comparativa_aemet_sevilla.csv `
+  --output-file data/resultados/resumen_aemet_sevilla.md
+```
