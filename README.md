@@ -96,6 +96,48 @@ python -m irrigation_advisor.cli manual `
   --emitter-flow-lph 4
 ```
 
+## Servicio de recomendacion para cliente
+
+El flujo orientado a cliente parte de una estacion AEMET, periodo, cultivo, superficie y sistema de riego. Devuelve un informe con litros totales, litros diarios, lamina de riego, litros por planta y horas de riego.
+
+```powershell
+python -m irrigation_advisor.cli recommend `
+  --station 5783 `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --crop olivar `
+  --stage media `
+  --soil franco `
+  --area-m2 3500 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4 `
+  --output markdown `
+  --output-file data/resultados/recomendacion_cliente_olivar.md
+```
+
+Si ya existe un CSV descargado desde AEMET, puede reutilizarse como cache para evitar nuevas peticiones a la API:
+
+```powershell
+python -m irrigation_advisor.cli recommend `
+  --station 5783 `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --weather-file data/resultados/comparativa_aemet_sevilla.csv `
+  --crop olivar `
+  --stage media `
+  --soil franco `
+  --area-m2 3500 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4 `
+  --output-file data/resultados/recomendacion_cliente_olivar.md
+```
+
+La salida responde a la pregunta comercial:
+
+```text
+Para esta parcela, cultivo y periodo climatico, cuanto debe regar el cliente y durante cuanto tiempo.
+```
+
 ## Comparativa de cultivos
 
 Para comparar los tres cultivos con el mismo escenario climatico, suelo y sistema de riego:

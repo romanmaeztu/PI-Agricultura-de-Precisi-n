@@ -16,6 +16,39 @@ python -m irrigation_advisor.cli export-comparison `
 
 Los archivos CSV/JSON resultantes sirven como entrada inicial para resultados, dashboard y futura ingesta en BigQuery.
 
+Para generar un informe de recomendacion para un cliente:
+
+```powershell
+python -m irrigation_advisor.cli recommend `
+  --station 5783 `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --crop olivar `
+  --stage media `
+  --soil franco `
+  --area-m2 3500 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4 `
+  --output-file data/resultados/recomendacion_cliente_olivar.md
+```
+
+Si `comparativa_aemet_sevilla.csv` ya existe, se puede usar como cache:
+
+```powershell
+python -m irrigation_advisor.cli recommend `
+  --station 5783 `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --weather-file data/resultados/comparativa_aemet_sevilla.csv `
+  --crop olivar `
+  --stage media `
+  --soil franco `
+  --area-m2 3500 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4 `
+  --output-file data/resultados/recomendacion_cliente_olivar.md
+```
+
 Para generar datos reales desde AEMET:
 
 ```powershell

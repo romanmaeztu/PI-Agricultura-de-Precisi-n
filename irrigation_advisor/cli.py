@@ -183,6 +183,42 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "recommend":
+        if args.weather_file:
+            weather_days, station_name, province = weather_days_from_export(
+                input_file=args.weather_file,
+                station_id=args.station,
+                start=args.start,
+                end=args.end,
+            )
+        else:
+            client = AemetClient()
+            station = client.find_station(args.station)
+            station_name = station.nombre if station else None
+            province = station.provincia if station else None
+            latitude = args.latitude or (station.latitude_deg if station else None)
+            weather_days = client.get_daily_climate(
+                station_id=args.station,
+                start=date.fromisoformat(args.start),
+                end=date.fromisoformat(args.end),
+                latitude_deg=latitude,
+            )
+        report = build_single_crop_report(args=args, weather_days=weather_days)
+        recommendation = recommendation_to_dict(
+            report=report,
+            station_id=args.station,
+            station_name=station_name,
+            province=province,
+            start=args.start,
+            end=args.end,
+        )
+        write_or_print_recommendation(
+            recommendation=recommendation,
+            output=args.output,
+            output_file=args.output_file,
+        )
+        return 0
+
     crop = build_crop_profile(crop=args.crop, stage=args.stage, kc=args.kc)
     root_depth_m = args.root_depth_m if args.root_depth_m is not None else crop.root_depth_m
     max_depletion_fraction = (
@@ -332,6 +368,16 @@ def build_parser() -> argparse.ArgumentParser:
     summary.add_argument("--input-file", required=True)
     summary.add_argument("--output-file", default="data/resultados/resumen_riego.csv")
     summary.add_argument("--file-format", choices=["csv", "json", "markdown"], help="Si se omite, se infiere por extension.")
+
+    recommend = subparsers.add_parser("recommend", help="Genera una recomendacion de riego para un cliente.")
+    recommend.add_argument("--station", required=True, help="Indicativo de estacion AEMET.")
+    recommend.add_argument("--start", required=True, help="Fecha inicial YYYY-MM-DD.")
+    recommend.add_argument("--end", required=True, help="Fecha final YYYY-MM-DD.")
+    recommend.add_argument("--latitude", type=float, help="Latitud decimal si AEMET no aporta ET0.")
+    recommend.add_argument("--weather-file", help="CSV/JSON de AEMET ya exportado para evitar llamar de nuevo a la API.")
+    add_common_arguments(recommend)
+    recommend.add_argument("--output", choices=["json", "markdown"], default="markdown")
+    recommend.add_argument("--output-file", help="Ruta opcional para guardar el informe.")
     return parser
 
 
@@ -438,6 +484,278 @@ def compare_crop_reports(args: argparse.Namespace, weather_days: list[WeatherDay
             )
         )
     return reports
+
+
+def build_single_crop_report(args: argparse.Namespace, weather_days: list[WeatherDay]) -> IrrigationReport:
+    crop = build_crop_profile(crop=args.crop, stage=args.stage, kc=args.kc)
+    root_depth_m = args.root_depth_m if args.root_depth_m is not None else crop.root_depth_m
+    max_depletion_fraction = (
+        args.max_depletion_fraction
+        if args.max_depletion_fraction is not None
+        else crop.max_depletion_fraction
+    )
+    soil = build_soil_profile(
+        soil=args.soil,
+        root_depth_m=root_depth_m,
+        field_capacity=args.field_capacity,
+        wilting_point=args.wilting_point,
+        max_depletion_fraction=max_depletion_fraction,
+    )
+    plant_spacing_m2 = (
+        args.plant_spacing_m2
+        if args.plant_spacing_m2 is not None
+        else crop.plant_spacing_m2
+    )
+    system = IrrigationSystem(
+        area_m2=args.area_m2,
+        efficiency=args.irrigation_efficiency,
+        plant_spacing_m2=plant_spacing_m2,
+        emitters_per_plant=args.emitters_per_plant,
+        emitter_flow_lph=args.emitter_flow_lph,
+    )
+    return recommend_irrigation(
+        weather_days=weather_days,
+        crop=crop,
+        soil=soil,
+        system=system,
+        effective_rainfall_ratio=args.effective_rainfall_ratio,
+        current_soil_moisture=args.current_soil_moisture,
+    )
+
+
+def weather_days_from_export(
+    input_file: str,
+    station_id: str,
+    start: str,
+    end: str,
+) -> tuple[list[WeatherDay], str | None, str | None]:
+    rows = read_export_rows(input_file)
+    start_date = date.fromisoformat(start)
+    end_date = date.fromisoformat(end)
+    by_date: dict[str, dict] = {}
+    station_name = None
+    province = None
+    for row in rows:
+        if str(row.get("estacion", "")) != station_id:
+            continue
+        row_date_text = str(row.get("fecha", ""))
+        if not row_date_text:
+            continue
+        row_date = date.fromisoformat(row_date_text)
+        if row_date < start_date or row_date > end_date:
+            continue
+        by_date.setdefault(row_date_text, row)
+        station_name = station_name or first_value([row], "nombre_estacion")
+        province = province or first_value([row], "provincia")
+
+    weather_days = []
+    for row_date_text in sorted(by_date):
+        row = by_date[row_date_text]
+        weather_days.append(
+            WeatherDay(
+                date=date.fromisoformat(row_date_text),
+                et0_mm=to_float(row.get("et0_mm")),
+                rain_mm=to_float(row.get("lluvia_mm")),
+                tmin_c=optional_float(row.get("tmin_c")),
+                tmax_c=optional_float(row.get("tmax_c")),
+                tmean_c=optional_float(row.get("tmedia_c")),
+            )
+        )
+    if not weather_days:
+        raise ValueError("No hay datos climaticos en el archivo para la estacion y fechas indicadas")
+    return weather_days, station_name, province
+
+
+def recommendation_to_dict(
+    report: IrrigationReport,
+    station_id: str,
+    station_name: str | None,
+    province: str | None,
+    start: str,
+    end: str,
+) -> dict:
+    days = len(report.days)
+    daily_liters = [day.liters_total for day in report.days]
+    daily_liters_per_plant = [
+        day.liters_per_plant for day in report.days if day.liters_per_plant is not None
+    ]
+    daily_runtime = [day.runtime_hours for day in report.days if day.runtime_hours is not None]
+    total_liters = sum(daily_liters)
+    return {
+        "service": "recomendacion_riego",
+        "location": {
+            "station": station_id,
+            "station_name": station_name,
+            "province": province,
+        },
+        "period": {
+            "start": start,
+            "end": end,
+            "days": days,
+        },
+        "plot": {
+            "crop": report.crop.name,
+            "stage": report.crop.stage,
+            "soil": report.soil.name,
+            "area_m2": report.system.area_m2,
+            "area_ha": round(report.system.area_m2 / 10000, 4),
+            "plants_estimated": round(report.system.plants, 2) if report.system.plants else None,
+        },
+        "climate": {
+            "et0_avg_mm_day": round(average_recommendation(report, "et0_mm"), 2),
+            "rain_total_mm": round(sum(day.rain_mm for day in report.days), 2),
+            "tmin_avg_c": round(average_recommendation(report, "tmin_c"), 2),
+            "tmax_avg_c": round(average_recommendation(report, "tmax_c"), 2),
+            "tmean_avg_c": round(average_recommendation(report, "tmean_c"), 2),
+        },
+        "recommendation": {
+            "total_liters": round(total_liters, 2),
+            "avg_liters_day": round(total_liters / days, 2) if days else 0,
+            "avg_gross_mm_day": round(average_recommendation(report, "gross_irrigation_mm"), 2),
+            "avg_etc_mm_day": round(average_recommendation(report, "etc_mm"), 2),
+            "avg_liters_plant_day": round(sum(daily_liters_per_plant) / len(daily_liters_per_plant), 2)
+            if daily_liters_per_plant
+            else None,
+            "avg_runtime_hours_day": round(sum(daily_runtime) / len(daily_runtime), 2)
+            if daily_runtime
+            else None,
+            "first_irrigation_mm": round(report.first_irrigation_mm, 2)
+            if report.first_irrigation_mm is not None
+            else None,
+        },
+        "daily": [
+            {
+                "date": day.date.isoformat(),
+                "et0_mm": round(day.et0_mm, 2),
+                "rain_mm": round(day.rain_mm, 2),
+                "etc_mm": round(day.etc_mm, 2),
+                "gross_irrigation_mm": round(day.gross_irrigation_mm, 2),
+                "liters_total": round(day.liters_total, 2),
+                "liters_per_plant": round(day.liters_per_plant, 2)
+                if day.liters_per_plant is not None
+                else None,
+                "runtime_hours": round(day.runtime_hours, 2)
+                if day.runtime_hours is not None
+                else None,
+            }
+            for day in report.days
+        ],
+        "method": {
+            "formula": "ETc = ET0 * Kc; riego_bruto = max(0, ETc - lluvia_efectiva) / eficiencia",
+            "note": "Estimacion agronomica basada en AEMET y parametros de parcela; requiere calibracion con sensores para operacion real.",
+        },
+    }
+
+
+def recommendation_to_markdown(recommendation: dict) -> str:
+    location = recommendation["location"]
+    period = recommendation["period"]
+    plot = recommendation["plot"]
+    climate = recommendation["climate"]
+    result = recommendation["recommendation"]
+    lines = [
+        "# Informe de recomendacion de riego",
+        "",
+        "## Datos del cliente",
+        "",
+        f"- Estacion AEMET: {location['station']} - {location['station_name'] or 'N/D'} ({location['province'] or 'N/D'})",
+        f"- Periodo climatico: {period['start']} a {period['end']} ({period['days']} dias)",
+        f"- Cultivo: {plot['crop']} ({plot['stage']})",
+        f"- Suelo: {plot['soil']}",
+        f"- Superficie: {plot['area_m2']:.2f} m2 ({plot['area_ha']:.4f} ha)",
+    ]
+    if plot["plants_estimated"] is not None:
+        lines.append(f"- Plantas estimadas: {plot['plants_estimated']:.2f}")
+
+    lines.extend(
+        [
+            "",
+            "## Condiciones climaticas",
+            "",
+            f"- ET0 media: {climate['et0_avg_mm_day']:.2f} mm/dia",
+            f"- Lluvia total: {climate['rain_total_mm']:.2f} mm",
+            f"- Temperatura media: {climate['tmean_avg_c']:.2f} C",
+            "",
+            "## Recomendacion",
+            "",
+            f"- Riego total del periodo: {result['total_liters']:.2f} L",
+            f"- Riego medio diario: {result['avg_liters_day']:.2f} L/dia",
+            f"- Lamina media diaria: {result['avg_gross_mm_day']:.2f} mm/dia",
+        ]
+    )
+    if result["avg_liters_plant_day"] is not None:
+        lines.append(f"- Litros medios por planta: {result['avg_liters_plant_day']:.2f} L/planta/dia")
+    if result["avg_runtime_hours_day"] is not None:
+        lines.append(f"- Tiempo medio de riego: {result['avg_runtime_hours_day']:.2f} h/dia")
+
+    lines.extend(
+        [
+            "",
+            "## Detalle diario",
+            "",
+            "| Fecha | ET0 (mm) | Lluvia (mm) | ETc (mm) | Riego bruto (mm) | Litros | Horas |",
+            "|---|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for day in recommendation["daily"]:
+        lines.append(
+            "| {date} | {et0:.2f} | {rain:.2f} | {etc:.2f} | {gross:.2f} | {liters:.2f} | {hours} |".format(
+                date=day["date"],
+                et0=day["et0_mm"],
+                rain=day["rain_mm"],
+                etc=day["etc_mm"],
+                gross=day["gross_irrigation_mm"],
+                liters=day["liters_total"],
+                hours=format_optional_number(day["runtime_hours"]),
+            )
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Metodo",
+            "",
+            recommendation["method"]["formula"],
+            "",
+            recommendation["method"]["note"],
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def write_or_print_recommendation(
+    recommendation: dict,
+    output: str,
+    output_file: str | None,
+) -> None:
+    if output == "json":
+        payload = json.dumps(recommendation, ensure_ascii=False, indent=2) + "\n"
+    else:
+        payload = recommendation_to_markdown(recommendation)
+
+    if output_file:
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(payload, encoding="utf-8")
+        print(
+            json.dumps(
+                {
+                    "output_file": str(output_path),
+                    "format": output,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return
+    print(payload, end="")
+
+
+def average_recommendation(report: IrrigationReport, attr: str) -> float:
+    values = [getattr(day, attr) for day in report.days if getattr(day, attr) is not None]
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
 
 
 def build_comparison_from_args(args: argparse.Namespace) -> dict:
@@ -823,6 +1141,12 @@ def to_float(value: object) -> float:
     if isinstance(value, (int, float)):
         return float(value)
     return float(str(value).replace(",", "."))
+
+
+def optional_float(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    return to_float(value)
 
 
 def crop_defaults_to_dict() -> dict:

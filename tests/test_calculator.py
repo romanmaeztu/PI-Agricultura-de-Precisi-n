@@ -15,6 +15,7 @@ from irrigation_advisor.calculator import (
     recommend_irrigation,
 )
 from irrigation_advisor.cli import compare_crop_reports, main, reports_to_daily_export_rows
+from irrigation_advisor.cli import build_single_crop_report, recommendation_to_dict, recommendation_to_markdown
 from irrigation_advisor.models import IrrigationSystem, WeatherDay
 
 
@@ -362,6 +363,97 @@ class CalculatorTests(unittest.TestCase):
         self.assertEqual(rows[0]["nombre_estacion"], "SEVILLA AEROPUERTO")
         self.assertEqual({row["fecha"] for row in rows}, {"2024-05-01", "2024-05-02"})
         self.assertEqual({row["cultivo"] for row in rows}, {"olivar", "citricos", "almendro"})
+
+    def test_customer_recommendation_contains_service_outputs(self) -> None:
+        args = SimpleNamespace(
+            crop="olivar",
+            stage="media",
+            kc=None,
+            soil="franco",
+            root_depth_m=None,
+            field_capacity=None,
+            wilting_point=None,
+            max_depletion_fraction=None,
+            area_m2=3500,
+            irrigation_efficiency=0.90,
+            effective_rainfall_ratio=0.80,
+            current_soil_moisture=None,
+            plant_spacing_m2=None,
+            emitters_per_plant=2,
+            emitter_flow_lph=4,
+        )
+        weather_days = [
+            WeatherDay(date=date(2024, 5, 1), et0_mm=5.0, rain_mm=0.0, tmin_c=15.0, tmax_c=30.0, tmean_c=22.5),
+            WeatherDay(date=date(2024, 5, 2), et0_mm=6.0, rain_mm=1.0, tmin_c=16.0, tmax_c=31.0, tmean_c=23.5),
+        ]
+
+        report = build_single_crop_report(args=args, weather_days=weather_days)
+        recommendation = recommendation_to_dict(
+            report=report,
+            station_id="5783",
+            station_name="SEVILLA AEROPUERTO",
+            province="SEVILLA",
+            start="2024-05-01",
+            end="2024-05-02",
+        )
+        markdown = recommendation_to_markdown(recommendation)
+
+        self.assertEqual(recommendation["plot"]["crop"], "olivar")
+        self.assertEqual(recommendation["plot"]["area_m2"], 3500)
+        self.assertGreater(recommendation["recommendation"]["total_liters"], 0)
+        self.assertIn("Informe de recomendacion de riego", markdown)
+        self.assertIn("Riego medio diario", markdown)
+
+    def test_cli_recommend_uses_weather_file_without_aemet_call(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            weather_file = Path(tmp_dir) / "weather.csv"
+            output_file = Path(tmp_dir) / "recomendacion.md"
+            weather_file.write_text(
+                "\n".join(
+                    [
+                        "fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,horas_riego,ranking_demanda",
+                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,5.0,0.0,15.0,30.0,22.5,0.7,0.6,8.0,39.0,3.5,3.89,38888.89,31.11,3.89,1",
+                        "2024-05-02,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,6.0,1.0,16.0,31.0,23.5,0.7,0.6,8.0,39.0,4.2,3.78,37777.78,30.22,3.78,1",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with redirect_stdout(StringIO()):
+                exit_code = main(
+                    [
+                        "recommend",
+                        "--station",
+                        "5783",
+                        "--start",
+                        "2024-05-01",
+                        "--end",
+                        "2024-05-02",
+                        "--weather-file",
+                        str(weather_file),
+                        "--crop",
+                        "olivar",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "3500",
+                        "--emitters-per-plant",
+                        "2",
+                        "--emitter-flow-lph",
+                        "4",
+                        "--output-file",
+                        str(output_file),
+                    ]
+                )
+
+            text = output_file.read_text(encoding="utf-8")
+            self.assertEqual(exit_code, 0)
+            self.assertIn("SEVILLA AEROPUERTO", text)
+            self.assertIn("Superficie: 3500.00 m2", text)
+            self.assertIn("Riego medio diario", text)
 
 
 if __name__ == "__main__":
