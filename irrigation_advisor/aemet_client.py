@@ -31,6 +31,7 @@ class Station:
 
 class AemetClient:
     def __init__(self, api_key: Optional[str] = None, base_url: str = BASE_URL, timeout: int = 30) -> None:
+        load_env_file()
         self.api_key = api_key or os.getenv("AEMET_API_KEY")
         if not self.api_key:
             raise AemetError("Falta AEMET_API_KEY. Definela como variable de entorno.")
@@ -91,6 +92,12 @@ class AemetClient:
             )
         return days
 
+    def find_station(self, station_id: str) -> Optional[Station]:
+        return next(
+            (station for station in self.get_station_inventory() if station.indicativo == station_id),
+            None,
+        )
+
     def _get_aemet_resource(self, endpoint: str) -> Any:
         metadata = self._request_json(f"{self.base_url}{endpoint}", params={"api_key": self.api_key})
         status = int(metadata.get("estado", 0))
@@ -125,6 +132,20 @@ class AemetClient:
 
 def format_aemet_date(value: date) -> str:
     return f"{value.isoformat()}T00:00:00UTC"
+
+
+def load_env_file(path: str = ".env") -> None:
+    if not os.path.exists(path):
+        return
+    with open(path, "r", encoding="utf-8") as file:
+        for line in file:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, value = stripped.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            os.environ.setdefault(key, value)
 
 
 def decode_payload(payload: bytes) -> str:
@@ -186,4 +207,3 @@ def parse_aemet_coordinate(value: Any) -> Optional[float]:
     if hemisphere in {"S", "W"}:
         decimal *= -1
     return decimal
-

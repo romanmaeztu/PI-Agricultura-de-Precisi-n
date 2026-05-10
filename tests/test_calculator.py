@@ -2,6 +2,7 @@ from datetime import date
 from contextlib import redirect_stdout
 from pathlib import Path
 from io import StringIO
+from types import SimpleNamespace
 import csv
 import json
 import tempfile
@@ -13,7 +14,7 @@ from irrigation_advisor.calculator import (
     estimate_et0_hargreaves,
     recommend_irrigation,
 )
-from irrigation_advisor.cli import main
+from irrigation_advisor.cli import compare_crop_reports, main, reports_to_daily_export_rows
 from irrigation_advisor.models import IrrigationSystem, WeatherDay
 
 
@@ -244,6 +245,39 @@ class CalculatorTests(unittest.TestCase):
             self.assertEqual(len(rows), 3)
             self.assertEqual(rows[0]["fecha"], date.today().isoformat())
             self.assertEqual({row["cultivo"] for row in rows}, {"olivar", "citricos", "almendro"})
+
+    def test_daily_export_rows_include_station_and_dates(self) -> None:
+        args = SimpleNamespace(
+            stage="media",
+            soil="franco",
+            field_capacity=None,
+            wilting_point=None,
+            area_m2=1000,
+            irrigation_efficiency=0.90,
+            emitters_per_plant=2,
+            emitter_flow_lph=4,
+            effective_rainfall_ratio=0.80,
+            current_soil_moisture=None,
+        )
+        weather_days = [
+            WeatherDay(date=date(2024, 5, 1), et0_mm=5.0, rain_mm=0.0, tmin_c=15.0, tmax_c=30.0, tmean_c=22.5),
+            WeatherDay(date=date(2024, 5, 2), et0_mm=6.0, rain_mm=1.0, tmin_c=16.0, tmax_c=31.0, tmean_c=23.5),
+        ]
+
+        reports = compare_crop_reports(args=args, weather_days=weather_days)
+        rows = reports_to_daily_export_rows(
+            reports=reports,
+            soil_name="franco",
+            station_id="5783",
+            station_name="SEVILLA AEROPUERTO",
+            province="SEVILLA",
+        )
+
+        self.assertEqual(len(rows), 6)
+        self.assertEqual(rows[0]["estacion"], "5783")
+        self.assertEqual(rows[0]["nombre_estacion"], "SEVILLA AEROPUERTO")
+        self.assertEqual({row["fecha"] for row in rows}, {"2024-05-01", "2024-05-02"})
+        self.assertEqual({row["cultivo"] for row in rows}, {"olivar", "citricos", "almendro"})
 
 
 if __name__ == "__main__":

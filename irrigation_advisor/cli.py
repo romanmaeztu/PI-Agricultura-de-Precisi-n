@@ -14,11 +14,17 @@ from .models import CROP_DEFAULTS, IrrigationReport, IrrigationSystem, WeatherDa
 
 EXPORT_FIELDNAMES = [
     "fecha",
+    "estacion",
+    "nombre_estacion",
+    "provincia",
     "cultivo",
     "fase",
     "suelo",
     "et0_mm",
     "lluvia_mm",
+    "tmin_c",
+    "tmax_c",
+    "tmedia_c",
     "kc",
     "profundidad_raices_m",
     "marco_m2_por_planta",
@@ -78,13 +84,50 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "export-comparison":
         comparison = build_comparison_from_args(args)
         output_format = args.file_format or infer_export_format(args.output_file)
-        rows = comparison_to_export_rows(comparison)
+        rows = comparison_to_export_rows(comparison=comparison)
         write_export(rows=rows, output_file=args.output_file, output_format=output_format)
         print(
             json.dumps(
                 {
                     "output_file": str(Path(args.output_file)),
                     "format": output_format,
+                    "rows": len(rows),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    if args.command == "export-aemet-comparison":
+        client = AemetClient()
+        station = client.find_station(args.station)
+        latitude = args.latitude or (station.latitude_deg if station else None)
+        weather_days = client.get_daily_climate(
+            station_id=args.station,
+            start=date.fromisoformat(args.start),
+            end=date.fromisoformat(args.end),
+            latitude_deg=latitude,
+        )
+        reports = compare_crop_reports(args=args, weather_days=weather_days)
+        rows = reports_to_daily_export_rows(
+            reports=reports,
+            soil_name=args.soil,
+            station_id=args.station,
+            station_name=station.nombre if station else None,
+            province=station.provincia if station else None,
+        )
+        output_format = args.file_format or infer_export_format(args.output_file)
+        write_export(rows=rows, output_file=args.output_file, output_format=output_format)
+        print(
+            json.dumps(
+                {
+                    "output_file": str(Path(args.output_file)),
+                    "format": output_format,
+                    "station": args.station,
+                    "start": args.start,
+                    "end": args.end,
+                    "weather_days": len(weather_days),
                     "rows": len(rows),
                 },
                 ensure_ascii=False,
@@ -216,6 +259,27 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--emitter-flow-lph", type=float)
     export.add_argument("--output-file", default="data/resultados/comparativa_riego.csv")
     export.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
+
+    export_aemet = subparsers.add_parser(
+        "export-aemet-comparison",
+        help="Exporta comparativa diaria de cultivos con datos reales AEMET.",
+    )
+    export_aemet.add_argument("--station", required=True, help="Indicativo de estacion AEMET.")
+    export_aemet.add_argument("--start", required=True, help="Fecha inicial YYYY-MM-DD.")
+    export_aemet.add_argument("--end", required=True, help="Fecha final YYYY-MM-DD.")
+    export_aemet.add_argument("--latitude", type=float, help="Latitud decimal si AEMET no aporta ET0.")
+    export_aemet.add_argument("--stage", required=True, help="Fase comun: inicio, desarrollo, media, madurez.")
+    export_aemet.add_argument("--soil", required=True, help="Tipo: arenoso, franco_arenoso, franco, franco_arcilloso, arcilloso.")
+    export_aemet.add_argument("--area-m2", type=float, required=True, help="Superficie de la parcela en m2.")
+    export_aemet.add_argument("--field-capacity", type=float)
+    export_aemet.add_argument("--wilting-point", type=float)
+    export_aemet.add_argument("--irrigation-efficiency", type=float, default=0.90)
+    export_aemet.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
+    export_aemet.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
+    export_aemet.add_argument("--emitters-per-plant", type=int)
+    export_aemet.add_argument("--emitter-flow-lph", type=float)
+    export_aemet.add_argument("--output-file", default="data/resultados/comparativa_aemet.csv")
+    export_aemet.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
     return parser
 
 
@@ -271,6 +335,9 @@ def report_to_dict(report: IrrigationReport) -> dict:
             {
                 "date": item.date.isoformat(),
                 "et0_mm": round(item.et0_mm, 2),
+                "tmin_c": round(item.tmin_c, 2) if item.tmin_c is not None else None,
+                "tmax_c": round(item.tmax_c, 2) if item.tmax_c is not None else None,
+                "tmean_c": round(item.tmean_c, 2) if item.tmean_c is not None else None,
                 "kc": round(item.kc, 3),
                 "etc_mm": round(item.etc_mm, 2),
                 "rain_mm": round(item.rain_mm, 2),
@@ -448,11 +515,17 @@ def comparison_to_export_rows(comparison: dict) -> list[dict]:
         rows.append(
             {
                 "fecha": scenario["date"],
+                "estacion": None,
+                "nombre_estacion": None,
+                "provincia": None,
                 "cultivo": row["crop"],
                 "fase": row["stage"],
                 "suelo": scenario["soil"],
                 "et0_mm": scenario["et0_mm"],
                 "lluvia_mm": scenario["rain_mm"],
+                "tmin_c": None,
+                "tmax_c": None,
+                "tmedia_c": None,
                 "kc": row["kc"],
                 "profundidad_raices_m": row["root_depth_m"],
                 "marco_m2_por_planta": row["plant_spacing_m2"],
@@ -465,6 +538,63 @@ def comparison_to_export_rows(comparison: dict) -> list[dict]:
                 "ranking_demanda": ranking[row["crop"]],
             }
         )
+    return rows
+
+
+def reports_to_daily_export_rows(
+    reports: list[IrrigationReport],
+    soil_name: str,
+    station_id: str,
+    station_name: str | None,
+    province: str | None,
+) -> list[dict]:
+    rows = []
+    if not reports:
+        return rows
+    day_count = len(reports[0].days)
+    for day_index in range(day_count):
+        day_rows = []
+        for report in reports:
+            day = report.days[day_index]
+            day_rows.append(
+                {
+                    "fecha": day.date.isoformat(),
+                    "estacion": station_id,
+                    "nombre_estacion": station_name,
+                    "provincia": province,
+                    "cultivo": report.crop.name,
+                    "fase": report.crop.stage,
+                    "suelo": soil_name,
+                    "et0_mm": round(day.et0_mm, 2),
+                    "lluvia_mm": round(day.rain_mm, 2),
+                    "tmin_c": round(day.tmin_c, 2) if day.tmin_c is not None else None,
+                    "tmax_c": round(day.tmax_c, 2) if day.tmax_c is not None else None,
+                    "tmedia_c": round(day.tmean_c, 2) if day.tmean_c is not None else None,
+                    "kc": round(report.crop.kc, 3),
+                    "profundidad_raices_m": report.crop.root_depth_m,
+                    "marco_m2_por_planta": report.crop.plant_spacing_m2,
+                    "agua_facilmente_disponible_mm": round(report.soil.readily_available_water_mm, 2),
+                    "etc_mm": round(day.etc_mm, 2),
+                    "riego_bruto_mm": round(day.gross_irrigation_mm, 2),
+                    "litros_totales": round(day.liters_total, 2),
+                    "litros_por_planta": round(day.liters_per_plant, 2)
+                    if day.liters_per_plant is not None
+                    else None,
+                    "horas_riego": round(day.runtime_hours, 2)
+                    if day.runtime_hours is not None
+                    else None,
+                }
+            )
+        ranking = {
+            row["cultivo"]: position
+            for position, row in enumerate(
+                sorted(day_rows, key=lambda item: item["litros_totales"]),
+                start=1,
+            )
+        }
+        for row in day_rows:
+            row["ranking_demanda"] = ranking[row["cultivo"]]
+            rows.append(row)
     return rows
 
 

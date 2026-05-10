@@ -158,8 +158,33 @@ python -m irrigation_advisor.cli export-comparison `
 Columnas del CSV:
 
 ```text
-fecha,cultivo,fase,suelo,et0_mm,lluvia_mm,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,horas_riego,ranking_demanda
+fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,horas_riego,ranking_demanda
 ```
+
+## Exportacion con AEMET real
+
+Para generar el mismo dataset usando datos reales de una estacion AEMET:
+
+```powershell
+python -m irrigation_advisor.cli export-aemet-comparison `
+  --station 5783 `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --stage media `
+  --soil franco `
+  --area-m2 10000 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4 `
+  --output-file data/resultados/comparativa_aemet_sevilla.csv
+```
+
+La clave de AEMET debe estar fuera del codigo, como variable de entorno o en un archivo `.env` ignorado por Git:
+
+```powershell
+$env:AEMET_API_KEY = "tu_api_key"
+```
+
+Si AEMET no devuelve ET0 directamente, el programa estima ET0 con Hargreaves-Samani a partir de temperatura maxima, minima y latitud de la estacion.
 
 ## Pruebas
 

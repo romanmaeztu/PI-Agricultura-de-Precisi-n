@@ -113,6 +113,9 @@ class WeatherDay:
 class DayRecommendation:
     date: date
     et0_mm: float
+    tmin_c: Optional[float]
+    tmax_c: Optional[float]
+    tmean_c: Optional[float]
     kc: float
     etc_mm: float
     rain_mm: float

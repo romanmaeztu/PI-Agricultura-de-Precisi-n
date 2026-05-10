@@ -167,6 +167,9 @@ def recommend_irrigation(
             DayRecommendation(
                 date=day.date,
                 et0_mm=day.et0_mm,
+                tmin_c=day.tmin_c,
+                tmax_c=day.tmax_c,
+                tmean_c=day.tmean_c,
                 kc=crop.kc,
                 etc_mm=etc_mm,
                 rain_mm=day.rain_mm,
