@@ -455,6 +455,58 @@ class CalculatorTests(unittest.TestCase):
             self.assertIn("Superficie: 3500.00 m2", text)
             self.assertIn("Riego medio diario", text)
 
+    def test_cli_recommend_resolves_station_from_weather_file_filters(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            weather_file = Path(tmp_dir) / "weather.csv"
+            output_file = Path(tmp_dir) / "recomendacion.md"
+            weather_file.write_text(
+                "\n".join(
+                    [
+                        "fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,horas_riego,ranking_demanda",
+                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,5.0,0.0,15.0,30.0,22.5,0.7,0.6,8.0,39.0,3.5,3.89,38888.89,31.11,3.89,1",
+                        "2024-05-02,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,6.0,1.0,16.0,31.0,23.5,0.7,0.6,8.0,39.0,4.2,3.78,37777.78,30.22,3.78,1",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with redirect_stdout(StringIO()):
+                exit_code = main(
+                    [
+                        "recommend",
+                        "--province",
+                        "SEVILLA",
+                        "--station-name",
+                        "AEROPUERTO",
+                        "--start",
+                        "2024-05-01",
+                        "--end",
+                        "2024-05-02",
+                        "--weather-file",
+                        str(weather_file),
+                        "--crop",
+                        "olivar",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "3500",
+                        "--emitters-per-plant",
+                        "2",
+                        "--emitter-flow-lph",
+                        "4",
+                        "--output-file",
+                        str(output_file),
+                    ]
+                )
+
+            text = output_file.read_text(encoding="utf-8")
+            self.assertEqual(exit_code, 0)
+            self.assertIn("5783 - SEVILLA AEROPUERTO", text)
+            self.assertIn("Riego medio diario", text)
+
 
 if __name__ == "__main__":
     unittest.main()

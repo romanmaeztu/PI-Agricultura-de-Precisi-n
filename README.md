@@ -102,7 +102,8 @@ El flujo orientado a cliente parte de una estacion AEMET, periodo, cultivo, supe
 
 ```powershell
 python -m irrigation_advisor.cli recommend `
-  --station 5783 `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
   --crop olivar `
@@ -119,7 +120,8 @@ Si ya existe un CSV descargado desde AEMET, puede reutilizarse como cache para e
 
 ```powershell
 python -m irrigation_advisor.cli recommend `
-  --station 5783 `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
   --weather-file data/resultados/comparativa_aemet_sevilla.csv `
@@ -137,6 +139,8 @@ La salida responde a la pregunta comercial:
 ```text
 Para esta parcela, cultivo y periodo climatico, cuanto debe regar el cliente y durante cuanto tiempo.
 ```
+
+Tambien puede usarse el indicativo AEMET directamente con `--station 5783`. Si no se indica `--station`, el sistema busca en el inventario de AEMET por provincia y nombre de estacion.
 
 ## Comparativa de cultivos
 
@@ -209,7 +213,8 @@ Para generar el mismo dataset usando datos reales de una estacion AEMET:
 
 ```powershell
 python -m irrigation_advisor.cli export-aemet-comparison `
-  --station 5783 `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
   --stage media `

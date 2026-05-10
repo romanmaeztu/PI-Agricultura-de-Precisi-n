@@ -20,7 +20,8 @@ Para generar un informe de recomendacion para un cliente:
 
 ```powershell
 python -m irrigation_advisor.cli recommend `
-  --station 5783 `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
   --crop olivar `
@@ -36,7 +37,8 @@ Si `comparativa_aemet_sevilla.csv` ya existe, se puede usar como cache:
 
 ```powershell
 python -m irrigation_advisor.cli recommend `
-  --station 5783 `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
   --weather-file data/resultados/comparativa_aemet_sevilla.csv `
@@ -53,7 +55,8 @@ Para generar datos reales desde AEMET:
 
 ```powershell
 python -m irrigation_advisor.cli export-aemet-comparison `
-  --station 5783 `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
   --stage media `

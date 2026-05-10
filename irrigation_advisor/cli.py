@@ -7,7 +7,7 @@ from datetime import date
 from pathlib import Path
 from typing import Sequence
 
-from .aemet_client import AemetClient
+from .aemet_client import AemetClient, Station
 from .calculator import build_crop_profile, build_soil_profile, recommend_irrigation
 from .models import CROP_DEFAULTS, IrrigationReport, IrrigationSystem, WeatherDay
 
@@ -129,10 +129,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "export-aemet-comparison":
         client = AemetClient()
-        station = client.find_station(args.station)
+        station = resolve_station_from_args(client=client, args=args)
         latitude = args.latitude or (station.latitude_deg if station else None)
         weather_days = client.get_daily_climate(
-            station_id=args.station,
+            station_id=station.indicativo,
             start=date.fromisoformat(args.start),
             end=date.fromisoformat(args.end),
             latitude_deg=latitude,
@@ -141,7 +141,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         rows = reports_to_daily_export_rows(
             reports=reports,
             soil_name=args.soil,
-            station_id=args.station,
+            station_id=station.indicativo,
             station_name=station.nombre if station else None,
             province=station.provincia if station else None,
         )
@@ -152,7 +152,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 {
                     "output_file": str(Path(args.output_file)),
                     "format": output_format,
-                    "station": args.station,
+                    "station": station.indicativo,
+                    "station_name": station.nombre,
+                    "province": station.provincia,
                     "start": args.start,
                     "end": args.end,
                     "weather_days": len(weather_days),
@@ -185,20 +187,23 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "recommend":
         if args.weather_file:
-            weather_days, station_name, province = weather_days_from_export(
+            weather_days, station_id, station_name, province = weather_days_from_export(
                 input_file=args.weather_file,
                 station_id=args.station,
+                province=args.province,
+                station_name=args.station_name,
                 start=args.start,
                 end=args.end,
             )
         else:
             client = AemetClient()
-            station = client.find_station(args.station)
+            station = resolve_station_from_args(client=client, args=args)
+            station_id = station.indicativo
             station_name = station.nombre if station else None
             province = station.provincia if station else None
             latitude = args.latitude or (station.latitude_deg if station else None)
             weather_days = client.get_daily_climate(
-                station_id=args.station,
+                station_id=station_id,
                 start=date.fromisoformat(args.start),
                 end=date.fromisoformat(args.end),
                 latitude_deg=latitude,
@@ -206,7 +211,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         report = build_single_crop_report(args=args, weather_days=weather_days)
         recommendation = recommendation_to_dict(
             report=report,
-            station_id=args.station,
+            station_id=station_id,
             station_name=station_name,
             province=province,
             start=args.start,
@@ -347,7 +352,9 @@ def build_parser() -> argparse.ArgumentParser:
         "export-aemet-comparison",
         help="Exporta comparativa diaria de cultivos con datos reales AEMET.",
     )
-    export_aemet.add_argument("--station", required=True, help="Indicativo de estacion AEMET.")
+    export_aemet.add_argument("--station", help="Indicativo de estacion AEMET.")
+    export_aemet.add_argument("--province", help="Provincia para buscar estacion, por ejemplo SEVILLA.")
+    export_aemet.add_argument("--station-name", help="Texto del nombre de estacion, por ejemplo AEROPUERTO.")
     export_aemet.add_argument("--start", required=True, help="Fecha inicial YYYY-MM-DD.")
     export_aemet.add_argument("--end", required=True, help="Fecha final YYYY-MM-DD.")
     export_aemet.add_argument("--latitude", type=float, help="Latitud decimal si AEMET no aporta ET0.")
@@ -370,7 +377,9 @@ def build_parser() -> argparse.ArgumentParser:
     summary.add_argument("--file-format", choices=["csv", "json", "markdown"], help="Si se omite, se infiere por extension.")
 
     recommend = subparsers.add_parser("recommend", help="Genera una recomendacion de riego para un cliente.")
-    recommend.add_argument("--station", required=True, help="Indicativo de estacion AEMET.")
+    recommend.add_argument("--station", help="Indicativo de estacion AEMET.")
+    recommend.add_argument("--province", help="Provincia para buscar estacion, por ejemplo SEVILLA.")
+    recommend.add_argument("--station-name", help="Texto del nombre de estacion, por ejemplo AEROPUERTO.")
     recommend.add_argument("--start", required=True, help="Fecha inicial YYYY-MM-DD.")
     recommend.add_argument("--end", required=True, help="Fecha final YYYY-MM-DD.")
     recommend.add_argument("--latitude", type=float, help="Latitud decimal si AEMET no aporta ET0.")
@@ -397,6 +406,61 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--emitters-per-plant", type=int)
     parser.add_argument("--emitter-flow-lph", type=float)
     parser.add_argument("--kc", type=float, help="Sobrescribe el Kc por defecto.")
+
+
+def resolve_station_from_args(client: AemetClient, args: argparse.Namespace) -> Station:
+    station_id = getattr(args, "station", None)
+    province = getattr(args, "province", None)
+    station_name = getattr(args, "station_name", None)
+
+    if station_id:
+        station = client.find_station(station_id)
+        if station is None:
+            raise ValueError(f"No se encontro la estacion AEMET: {station_id}")
+        return station
+
+    if not province and not station_name:
+        raise ValueError("Indica --station o usa --province/--station-name para buscar estacion AEMET")
+
+    matches = filter_stations(
+        stations=client.get_station_inventory(),
+        province=province,
+        station_name=station_name,
+    )
+    if not matches:
+        raise ValueError("No se encontraron estaciones AEMET con los filtros indicados")
+    return matches[0]
+
+
+def filter_stations(
+    stations: list[Station],
+    province: str | None,
+    station_name: str | None,
+) -> list[Station]:
+    province_filter = normalize_text(province)
+    name_filter = normalize_text(station_name)
+    matches = []
+    for station in stations:
+        province_match = not province_filter or province_filter in normalize_text(station.provincia)
+        name_match = not name_filter or name_filter in normalize_text(station.nombre)
+        if province_match and name_match:
+            matches.append(station)
+
+    return sorted(
+        matches,
+        key=lambda station: (
+            0 if name_filter and normalize_text(station.nombre) == name_filter else 1,
+            station.provincia,
+            station.nombre,
+            station.indicativo,
+        ),
+    )
+
+
+def normalize_text(value: str | None) -> str:
+    if value is None:
+        return ""
+    return value.strip().lower()
 
 
 def report_to_dict(report: IrrigationReport) -> dict:
@@ -525,18 +589,30 @@ def build_single_crop_report(args: argparse.Namespace, weather_days: list[Weathe
 
 def weather_days_from_export(
     input_file: str,
-    station_id: str,
+    station_id: str | None,
+    province: str | None,
+    station_name: str | None,
     start: str,
     end: str,
-) -> tuple[list[WeatherDay], str | None, str | None]:
+) -> tuple[list[WeatherDay], str, str | None, str | None]:
     rows = read_export_rows(input_file)
     start_date = date.fromisoformat(start)
     end_date = date.fromisoformat(end)
     by_date: dict[str, dict] = {}
-    station_name = None
-    province = None
+    selected_station_id = station_id
+    selected_station_name = None
+    selected_province = None
+    province_filter = normalize_text(province)
+    name_filter = normalize_text(station_name)
     for row in rows:
-        if str(row.get("estacion", "")) != station_id:
+        row_station_id = str(row.get("estacion", "")).strip()
+        row_province = str(row.get("provincia", "")).strip()
+        row_station_name = str(row.get("nombre_estacion", "")).strip()
+        if selected_station_id and row_station_id != selected_station_id:
+            continue
+        if province_filter and province_filter not in normalize_text(row_province):
+            continue
+        if name_filter and name_filter not in normalize_text(row_station_name):
             continue
         row_date_text = str(row.get("fecha", ""))
         if not row_date_text:
@@ -544,9 +620,13 @@ def weather_days_from_export(
         row_date = date.fromisoformat(row_date_text)
         if row_date < start_date or row_date > end_date:
             continue
+        if selected_station_id is None:
+            selected_station_id = row_station_id
+        if row_station_id != selected_station_id:
+            continue
         by_date.setdefault(row_date_text, row)
-        station_name = station_name or first_value([row], "nombre_estacion")
-        province = province or first_value([row], "provincia")
+        selected_station_name = selected_station_name or first_value([row], "nombre_estacion")
+        selected_province = selected_province or first_value([row], "provincia")
 
     weather_days = []
     for row_date_text in sorted(by_date):
@@ -563,7 +643,7 @@ def weather_days_from_export(
         )
     if not weather_days:
         raise ValueError("No hay datos climaticos en el archivo para la estacion y fechas indicadas")
-    return weather_days, station_name, province
+    return weather_days, selected_station_id or "", selected_station_name, selected_province
 
 
 def recommendation_to_dict(
