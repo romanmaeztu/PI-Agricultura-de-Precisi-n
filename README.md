@@ -127,6 +127,40 @@ python -m irrigation_advisor.cli compare `
 
 Esta comparativa mantiene constantes ET0, lluvia, suelo, superficie, eficiencia y caudal. Lo que cambia es el perfil agronomico del cultivo: `Kc`, profundidad radicular, marco por planta y fraccion de agotamiento.
 
+## Exportacion de datos
+
+Para generar un dataset CSV preparado para resultados, dashboard o BigQuery:
+
+```powershell
+python -m irrigation_advisor.cli export-comparison `
+  --et0 5.6 `
+  --rain-mm 0 `
+  --stage media `
+  --soil franco `
+  --area-m2 10000 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4 `
+  --output-file data/resultados/comparativa_riego.csv
+```
+
+Tambien se puede exportar a JSON cambiando la extension:
+
+```powershell
+python -m irrigation_advisor.cli export-comparison `
+  --et0 5.6 `
+  --rain-mm 0 `
+  --stage media `
+  --soil franco `
+  --area-m2 10000 `
+  --output-file data/resultados/comparativa_riego.json
+```
+
+Columnas del CSV:
+
+```text
+fecha,cultivo,fase,suelo,et0_mm,lluvia_mm,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,horas_riego,ranking_demanda
+```
+
 ## Pruebas
 
 Ejecutar las pruebas desde la raiz del proyecto:

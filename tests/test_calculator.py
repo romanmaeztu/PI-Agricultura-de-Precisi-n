@@ -1,7 +1,10 @@
 from datetime import date
 from contextlib import redirect_stdout
+from pathlib import Path
 from io import StringIO
+import csv
 import json
+import tempfile
 import unittest
 
 from irrigation_advisor.calculator import (
@@ -174,6 +177,73 @@ class CalculatorTests(unittest.TestCase):
         self.assertIn("| Cultivo | Kc |", text)
         self.assertIn("| almendro |", text)
         self.assertIn("Menor demanda: olivar", text)
+
+    def test_cli_export_comparison_writes_csv_dataset(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_file = Path(tmp_dir) / "comparativa_riego.csv"
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "export-comparison",
+                        "--et0",
+                        "5",
+                        "--rain-mm",
+                        "0",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "1000",
+                        "--emitters-per-plant",
+                        "2",
+                        "--emitter-flow-lph",
+                        "4",
+                        "--output-file",
+                        str(output_file),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(output_file.exists())
+            with output_file.open("r", encoding="utf-8", newline="") as file:
+                rows = list(csv.DictReader(file))
+
+            self.assertEqual(len(rows), 3)
+            self.assertEqual(rows[0]["fecha"], date.today().isoformat())
+            self.assertIn("cultivo", rows[0])
+            self.assertIn("litros_totales", rows[0])
+            self.assertEqual({row["cultivo"] for row in rows}, {"olivar", "citricos", "almendro"})
+
+    def test_cli_export_comparison_writes_json_dataset(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_file = Path(tmp_dir) / "comparativa_riego.json"
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "export-comparison",
+                        "--et0",
+                        "5",
+                        "--rain-mm",
+                        "0",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "1000",
+                        "--output-file",
+                        str(output_file),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            rows = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertEqual(len(rows), 3)
+            self.assertEqual(rows[0]["fecha"], date.today().isoformat())
+            self.assertEqual({row["cultivo"] for row in rows}, {"olivar", "citricos", "almendro"})
 
 
 if __name__ == "__main__":

@@ -1,13 +1,35 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from datetime import date
+from pathlib import Path
 from typing import Sequence
 
 from .aemet_client import AemetClient
 from .calculator import build_crop_profile, build_soil_profile, recommend_irrigation
 from .models import CROP_DEFAULTS, IrrigationReport, IrrigationSystem, WeatherDay
+
+
+EXPORT_FIELDNAMES = [
+    "fecha",
+    "cultivo",
+    "fase",
+    "suelo",
+    "et0_mm",
+    "lluvia_mm",
+    "kc",
+    "profundidad_raices_m",
+    "marco_m2_por_planta",
+    "agua_facilmente_disponible_mm",
+    "etc_mm",
+    "riego_bruto_mm",
+    "litros_totales",
+    "litros_por_planta",
+    "horas_riego",
+    "ranking_demanda",
+]
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -46,26 +68,29 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "compare":
-        weather_days = [
-            WeatherDay(
-                date=date.fromisoformat(args.date),
-                et0_mm=args.et0,
-                rain_mm=args.rain_mm,
-            )
-        ]
-        reports = compare_crop_reports(args=args, weather_days=weather_days)
-        comparison = comparison_to_dict(
-            reports=reports,
-            date_value=args.date,
-            et0_mm=args.et0,
-            rain_mm=args.rain_mm,
-            soil_name=args.soil,
-            stage=args.stage,
-        )
+        comparison = build_comparison_from_args(args)
         if args.output == "markdown":
             print(comparison_to_markdown(comparison))
         else:
             print(json.dumps(comparison, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "export-comparison":
+        comparison = build_comparison_from_args(args)
+        output_format = args.file_format or infer_export_format(args.output_file)
+        rows = comparison_to_export_rows(comparison)
+        write_export(rows=rows, output_file=args.output_file, output_format=output_format)
+        print(
+            json.dumps(
+                {
+                    "output_file": str(Path(args.output_file)),
+                    "format": output_format,
+                    "rows": len(rows),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 0
 
     crop = build_crop_profile(crop=args.crop, stage=args.stage, kc=args.kc)
@@ -174,6 +199,23 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--emitters-per-plant", type=int)
     compare.add_argument("--emitter-flow-lph", type=float)
     compare.add_argument("--output", choices=["json", "markdown"], default="json")
+
+    export = subparsers.add_parser("export-comparison", help="Exporta la comparativa de cultivos a CSV o JSON.")
+    export.add_argument("--date", default=date.today().isoformat())
+    export.add_argument("--et0", type=float, required=True)
+    export.add_argument("--rain-mm", type=float, default=0.0)
+    export.add_argument("--stage", required=True, help="Fase comun: inicio, desarrollo, media, madurez.")
+    export.add_argument("--soil", required=True, help="Tipo: arenoso, franco_arenoso, franco, franco_arcilloso, arcilloso.")
+    export.add_argument("--area-m2", type=float, required=True, help="Superficie de la parcela en m2.")
+    export.add_argument("--field-capacity", type=float)
+    export.add_argument("--wilting-point", type=float)
+    export.add_argument("--irrigation-efficiency", type=float, default=0.90)
+    export.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
+    export.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
+    export.add_argument("--emitters-per-plant", type=int)
+    export.add_argument("--emitter-flow-lph", type=float)
+    export.add_argument("--output-file", default="data/resultados/comparativa_riego.csv")
+    export.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
     return parser
 
 
@@ -279,6 +321,25 @@ def compare_crop_reports(args: argparse.Namespace, weather_days: list[WeatherDay
     return reports
 
 
+def build_comparison_from_args(args: argparse.Namespace) -> dict:
+    weather_days = [
+        WeatherDay(
+            date=date.fromisoformat(args.date),
+            et0_mm=args.et0,
+            rain_mm=args.rain_mm,
+        )
+    ]
+    reports = compare_crop_reports(args=args, weather_days=weather_days)
+    return comparison_to_dict(
+        reports=reports,
+        date_value=args.date,
+        et0_mm=args.et0,
+        rain_mm=args.rain_mm,
+        soil_name=args.soil,
+        stage=args.stage,
+    )
+
+
 def comparison_to_dict(
     reports: list[IrrigationReport],
     date_value: str,
@@ -371,6 +432,64 @@ def format_optional_number(value: float | None) -> str:
     if value is None:
         return "-"
     return f"{value:.2f}"
+
+
+def comparison_to_export_rows(comparison: dict) -> list[dict]:
+    ranking = {
+        row["crop"]: position
+        for position, row in enumerate(
+            sorted(comparison["crops"], key=lambda item: item["total_liters"]),
+            start=1,
+        )
+    }
+    scenario = comparison["scenario"]
+    rows = []
+    for row in comparison["crops"]:
+        rows.append(
+            {
+                "fecha": scenario["date"],
+                "cultivo": row["crop"],
+                "fase": row["stage"],
+                "suelo": scenario["soil"],
+                "et0_mm": scenario["et0_mm"],
+                "lluvia_mm": scenario["rain_mm"],
+                "kc": row["kc"],
+                "profundidad_raices_m": row["root_depth_m"],
+                "marco_m2_por_planta": row["plant_spacing_m2"],
+                "agua_facilmente_disponible_mm": row["readily_available_water_mm"],
+                "etc_mm": row["etc_mm"],
+                "riego_bruto_mm": row["gross_irrigation_mm"],
+                "litros_totales": row["total_liters"],
+                "litros_por_planta": row["liters_per_plant"],
+                "horas_riego": row["runtime_hours"],
+                "ranking_demanda": ranking[row["crop"]],
+            }
+        )
+    return rows
+
+
+def write_export(rows: list[dict], output_file: str, output_format: str) -> None:
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_format == "csv":
+        with output_path.open("w", encoding="utf-8", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=EXPORT_FIELDNAMES)
+            writer.writeheader()
+            writer.writerows(rows)
+        return
+    if output_format == "json":
+        with output_path.open("w", encoding="utf-8") as file:
+            json.dump(rows, file, ensure_ascii=False, indent=2)
+            file.write("\n")
+        return
+    raise ValueError(f"Formato no soportado: {output_format}")
+
+
+def infer_export_format(output_file: str) -> str:
+    suffix = Path(output_file).suffix.lower()
+    if suffix == ".json":
+        return "json"
+    return "csv"
 
 
 def crop_defaults_to_dict() -> dict:
