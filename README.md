@@ -142,6 +142,22 @@ Para esta parcela, cultivo y periodo climatico, cuanto debe regar el cliente y d
 
 Tambien puede usarse el indicativo AEMET directamente con `--station 5783`. Si no se indica `--station`, el sistema busca en el inventario de AEMET por provincia y nombre de estacion.
 
+## Interfaz web
+
+Instalar dependencias:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+Ejecutar la app:
+
+```powershell
+python -m streamlit run app.py
+```
+
+La interfaz permite introducir provincia, estacion, cultivo, suelo, superficie y sistema de riego. Puede trabajar con AEMET API o con un CSV climatico ya exportado.
+
 ## Comparativa de cultivos
 
 Para comparar los tres cultivos con el mismo escenario climatico, suelo y sistema de riego:
