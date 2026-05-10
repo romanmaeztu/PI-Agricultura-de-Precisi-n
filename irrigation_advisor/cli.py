@@ -9,6 +9,7 @@ from typing import Sequence
 
 from .aemet_client import AemetClient, Station
 from .calculator import build_crop_profile, build_soil_profile, recommend_irrigation
+from .ml import predict_irrigation_with_model, train_irrigation_model
 from .models import CROP_DEFAULTS, IrrigationReport, IrrigationSystem, WeatherDay
 
 
@@ -20,6 +21,11 @@ EXPORT_FIELDNAMES = [
     "cultivo",
     "fase",
     "suelo",
+    "superficie_m2",
+    "eficiencia_riego",
+    "lluvia_efectiva_ratio",
+    "goteros_por_planta",
+    "caudal_gotero_lph",
     "et0_mm",
     "lluvia_mm",
     "tmin_c",
@@ -144,6 +150,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             station_id=station.indicativo,
             station_name=station.nombre if station else None,
             province=station.provincia if station else None,
+            effective_rainfall_ratio=args.effective_rainfall_ratio,
         )
         output_format = args.file_format or infer_export_format(args.output_file)
         write_export(rows=rows, output_file=args.output_file, output_format=output_format)
@@ -185,29 +192,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "train-ml":
+        result = train_irrigation_model(
+            input_file=args.input_file,
+            model_dir=args.model_dir,
+            backend=args.backend,
+            epochs=args.epochs,
+            validation_ratio=args.validation_ratio,
+            default_area_m2=args.default_area_m2,
+            default_emitters_per_plant=args.default_emitters_per_plant,
+            default_emitter_flow_lph=args.default_emitter_flow_lph,
+            default_efficiency=args.default_efficiency,
+            default_effective_rainfall_ratio=args.default_effective_rainfall_ratio,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
     if args.command == "recommend":
-        if args.weather_file:
-            weather_days, station_id, station_name, province = weather_days_from_export(
-                input_file=args.weather_file,
-                station_id=args.station,
-                province=args.province,
-                station_name=args.station_name,
-                start=args.start,
-                end=args.end,
-            )
-        else:
-            client = AemetClient()
-            station = resolve_station_from_args(client=client, args=args)
-            station_id = station.indicativo
-            station_name = station.nombre if station else None
-            province = station.provincia if station else None
-            latitude = args.latitude or (station.latitude_deg if station else None)
-            weather_days = client.get_daily_climate(
-                station_id=station_id,
-                start=date.fromisoformat(args.start),
-                end=date.fromisoformat(args.end),
-                latitude_deg=latitude,
-            )
+        weather_days, station_id, station_name, province = load_weather_from_args(args)
         report = build_single_crop_report(args=args, weather_days=weather_days)
         recommendation = recommendation_to_dict(
             report=report,
@@ -216,6 +218,41 @@ def main(argv: Sequence[str] | None = None) -> int:
             province=province,
             start=args.start,
             end=args.end,
+        )
+        if args.ml_model_dir:
+            recommendation["ml_prediction"] = predict_irrigation_with_model(
+                model_dir=args.ml_model_dir,
+                weather_days=weather_days,
+                args=args,
+                station_id=station_id,
+                station_name=station_name,
+                province=province,
+            )
+        write_or_print_recommendation(
+            recommendation=recommendation,
+            output=args.output,
+            output_file=args.output_file,
+        )
+        return 0
+
+    if args.command == "predict-ml":
+        weather_days, station_id, station_name, province = load_weather_from_args(args)
+        report = build_single_crop_report(args=args, weather_days=weather_days)
+        recommendation = recommendation_to_dict(
+            report=report,
+            station_id=station_id,
+            station_name=station_name,
+            province=province,
+            start=args.start,
+            end=args.end,
+        )
+        recommendation["ml_prediction"] = predict_irrigation_with_model(
+            model_dir=args.model_dir,
+            weather_days=weather_days,
+            args=args,
+            station_id=station_id,
+            station_name=station_name,
+            province=province,
         )
         write_or_print_recommendation(
             recommendation=recommendation,
@@ -376,6 +413,18 @@ def build_parser() -> argparse.ArgumentParser:
     summary.add_argument("--output-file", default="data/resultados/resumen_riego.csv")
     summary.add_argument("--file-format", choices=["csv", "json", "markdown"], help="Si se omite, se infiere por extension.")
 
+    train_ml = subparsers.add_parser("train-ml", help="Entrena un modelo predictivo con historicos AEMET exportados.")
+    train_ml.add_argument("--input-file", required=True, help="CSV/JSON generado por export-aemet-comparison.")
+    train_ml.add_argument("--model-dir", default="models/riego_predictivo")
+    train_ml.add_argument("--backend", choices=["auto", "keras", "linear"], default="auto")
+    train_ml.add_argument("--epochs", type=int, default=150)
+    train_ml.add_argument("--validation-ratio", type=float, default=0.20)
+    train_ml.add_argument("--default-area-m2", type=float, default=10000.0)
+    train_ml.add_argument("--default-emitters-per-plant", type=int, default=2)
+    train_ml.add_argument("--default-emitter-flow-lph", type=float, default=4.0)
+    train_ml.add_argument("--default-efficiency", type=float, default=0.90)
+    train_ml.add_argument("--default-effective-rainfall-ratio", type=float, default=0.80)
+
     recommend = subparsers.add_parser("recommend", help="Genera una recomendacion de riego para un cliente.")
     recommend.add_argument("--station", help="Indicativo de estacion AEMET.")
     recommend.add_argument("--province", help="Provincia para buscar estacion, por ejemplo SEVILLA.")
@@ -387,6 +436,20 @@ def build_parser() -> argparse.ArgumentParser:
     add_common_arguments(recommend)
     recommend.add_argument("--output", choices=["json", "markdown"], default="markdown")
     recommend.add_argument("--output-file", help="Ruta opcional para guardar el informe.")
+    recommend.add_argument("--ml-model-dir", help="Directorio de modelo entrenado para anadir prediccion ML.")
+
+    predict_ml = subparsers.add_parser("predict-ml", help="Predice riego con un modelo ML entrenado.")
+    predict_ml.add_argument("--model-dir", required=True, help="Directorio creado por train-ml.")
+    predict_ml.add_argument("--station", help="Indicativo de estacion AEMET.")
+    predict_ml.add_argument("--province", help="Provincia para buscar estacion, por ejemplo SEVILLA.")
+    predict_ml.add_argument("--station-name", help="Texto del nombre de estacion, por ejemplo AEROPUERTO.")
+    predict_ml.add_argument("--start", required=True, help="Fecha inicial YYYY-MM-DD.")
+    predict_ml.add_argument("--end", required=True, help="Fecha final YYYY-MM-DD.")
+    predict_ml.add_argument("--latitude", type=float, help="Latitud decimal si AEMET no aporta ET0.")
+    predict_ml.add_argument("--weather-file", help="CSV/JSON de AEMET ya exportado para evitar llamar de nuevo a la API.")
+    add_common_arguments(predict_ml)
+    predict_ml.add_argument("--output", choices=["json", "markdown"], default="markdown")
+    predict_ml.add_argument("--output-file", help="Ruta opcional para guardar el informe.")
     return parser
 
 
@@ -406,6 +469,34 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--emitters-per-plant", type=int)
     parser.add_argument("--emitter-flow-lph", type=float)
     parser.add_argument("--kc", type=float, help="Sobrescribe el Kc por defecto.")
+
+
+def load_weather_from_args(args: argparse.Namespace) -> tuple[list[WeatherDay], str, str | None, str | None]:
+    if args.weather_file:
+        return weather_days_from_export(
+            input_file=args.weather_file,
+            station_id=args.station,
+            province=args.province,
+            station_name=args.station_name,
+            start=args.start,
+            end=args.end,
+        )
+
+    client = AemetClient()
+    station = resolve_station_from_args(client=client, args=args)
+    latitude = args.latitude or (station.latitude_deg if station else None)
+    weather_days = client.get_daily_climate(
+        station_id=station.indicativo,
+        start=date.fromisoformat(args.start),
+        end=date.fromisoformat(args.end),
+        latitude_deg=latitude,
+    )
+    return (
+        weather_days,
+        station.indicativo,
+        station.nombre if station else None,
+        station.provincia if station else None,
+    )
 
 
 def resolve_station_from_args(client: AemetClient, args: argparse.Namespace) -> Station:
@@ -768,6 +859,35 @@ def recommendation_to_markdown(recommendation: dict) -> str:
     if result["avg_runtime_hours_day"] is not None:
         lines.append(f"- Tiempo medio de riego: {result['avg_runtime_hours_day']:.2f} h/dia")
 
+    ml_prediction = recommendation.get("ml_prediction")
+    if ml_prediction:
+        ml_summary = ml_prediction["summary"]
+        ml_model = ml_prediction["model"]
+        lines.extend(
+            [
+                "",
+                "## Prediccion ML",
+                "",
+                f"- Modelo: {ml_model['model_type']} ({ml_model['target']})",
+                f"- Riego total ML: {ml_summary['total_liters']:.2f} L",
+                f"- Riego medio diario ML: {ml_summary['avg_liters_day']:.2f} L/dia",
+                f"- Lamina media diaria ML: {ml_summary['avg_gross_mm_day']:.2f} mm/dia",
+            ]
+        )
+        if ml_summary["avg_liters_plant_day"] is not None:
+            lines.append(f"- Litros medios por planta ML: {ml_summary['avg_liters_plant_day']:.2f} L/planta/dia")
+        if ml_summary["avg_runtime_hours_day"] is not None:
+            lines.append(f"- Tiempo medio ML: {ml_summary['avg_runtime_hours_day']:.2f} h/dia")
+        metrics = ml_model.get("metrics") or {}
+        if metrics:
+            lines.append(
+                "- Validacion: MAE {mae} mm, RMSE {rmse} mm, R2 {r2}".format(
+                    mae=format_optional_number(metrics.get("mae_mm")),
+                    rmse=format_optional_number(metrics.get("rmse_mm")),
+                    r2=format_optional_number(metrics.get("r2")),
+                )
+            )
+
     lines.extend(
         [
             "",
@@ -789,6 +909,27 @@ def recommendation_to_markdown(recommendation: dict) -> str:
                 hours=format_optional_number(day["runtime_hours"]),
             )
         )
+
+    if ml_prediction:
+        lines.extend(
+            [
+                "",
+                "## Detalle diario ML",
+                "",
+                "| Fecha | Riego ML (mm) | Litros ML | L/planta ML | Horas ML |",
+                "|---|---:|---:|---:|---:|",
+            ]
+        )
+        for day in ml_prediction["daily"]:
+            lines.append(
+                "| {date} | {gross:.2f} | {liters:.2f} | {plant} | {hours} |".format(
+                    date=day["date"],
+                    gross=day["predicted_gross_irrigation_mm"],
+                    liters=day["predicted_liters_total"],
+                    plant=format_optional_number(day["predicted_liters_per_plant"]),
+                    hours=format_optional_number(day["predicted_runtime_hours"]),
+                )
+            )
 
     lines.extend(
         [
@@ -854,6 +995,11 @@ def build_comparison_from_args(args: argparse.Namespace) -> dict:
         rain_mm=args.rain_mm,
         soil_name=args.soil,
         stage=args.stage,
+        area_m2=args.area_m2,
+        irrigation_efficiency=args.irrigation_efficiency,
+        effective_rainfall_ratio=args.effective_rainfall_ratio,
+        emitters_per_plant=args.emitters_per_plant,
+        emitter_flow_lph=args.emitter_flow_lph,
     )
 
 
@@ -864,6 +1010,11 @@ def comparison_to_dict(
     rain_mm: float,
     soil_name: str,
     stage: str,
+    area_m2: float,
+    irrigation_efficiency: float,
+    effective_rainfall_ratio: float,
+    emitters_per_plant: int | None,
+    emitter_flow_lph: float | None,
 ) -> dict:
     rows = [comparison_row(report) for report in reports]
     sorted_rows = sorted(rows, key=lambda row: row["total_liters"])
@@ -876,6 +1027,11 @@ def comparison_to_dict(
             "rain_mm": rain_mm,
             "soil": soil_name,
             "stage": stage,
+            "area_m2": area_m2,
+            "irrigation_efficiency": irrigation_efficiency,
+            "effective_rainfall_ratio": effective_rainfall_ratio,
+            "emitters_per_plant": emitters_per_plant,
+            "emitter_flow_lph": emitter_flow_lph,
         },
         "ranking": {
             "lowest_irrigation_crop": lowest["crop"],
@@ -971,6 +1127,11 @@ def comparison_to_export_rows(comparison: dict) -> list[dict]:
                 "cultivo": row["crop"],
                 "fase": row["stage"],
                 "suelo": scenario["soil"],
+                "superficie_m2": scenario["area_m2"],
+                "eficiencia_riego": scenario["irrigation_efficiency"],
+                "lluvia_efectiva_ratio": scenario["effective_rainfall_ratio"],
+                "goteros_por_planta": scenario["emitters_per_plant"],
+                "caudal_gotero_lph": scenario["emitter_flow_lph"],
                 "et0_mm": scenario["et0_mm"],
                 "lluvia_mm": scenario["rain_mm"],
                 "tmin_c": None,
@@ -997,6 +1158,7 @@ def reports_to_daily_export_rows(
     station_id: str,
     station_name: str | None,
     province: str | None,
+    effective_rainfall_ratio: float | None = None,
 ) -> list[dict]:
     rows = []
     if not reports:
@@ -1015,6 +1177,11 @@ def reports_to_daily_export_rows(
                     "cultivo": report.crop.name,
                     "fase": report.crop.stage,
                     "suelo": soil_name,
+                    "superficie_m2": report.system.area_m2,
+                    "eficiencia_riego": report.system.efficiency,
+                    "lluvia_efectiva_ratio": effective_rainfall_ratio,
+                    "goteros_por_planta": report.system.emitters_per_plant,
+                    "caudal_gotero_lph": report.system.emitter_flow_lph,
                     "et0_mm": round(day.et0_mm, 2),
                     "lluvia_mm": round(day.rain_mm, 2),
                     "tmin_c": round(day.tmin_c, 2) if day.tmin_c is not None else None,

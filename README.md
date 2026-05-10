@@ -158,6 +158,68 @@ python -m streamlit run app.py
 
 La interfaz permite introducir provincia, estacion, cultivo, suelo, superficie y sistema de riego. Puede trabajar con AEMET API o con un CSV climatico ya exportado.
 
+## Capa predictiva ML/Keras
+
+El proyecto ya incluye una capa predictiva entrenable. El objetivo del modelo es predecir `riego_bruto_mm` a partir de historicos AEMET exportados y variables de cultivo/parcela: estacion, provincia, fecha, ET0, lluvia, temperaturas, cultivo, fase, suelo, Kc, profundidad radicular, marco de plantacion, eficiencia y caudal. La superficie se aplica despues para convertir la lamina predicha a litros del cliente.
+
+La capa agronomica sigue siendo la referencia trazable. La capa ML aprende sobre el historico generado/validado y permite ofrecer una prediccion como servicio. Cuando existan datos reales de sensores o decisiones de riego en campo, la misma estructura puede sustituir la variable objetivo por riego real aplicado o humedad objetivo alcanzada.
+
+Entrenar modelo:
+
+```powershell
+python -m irrigation_advisor.cli train-ml `
+  --input-file data/resultados/comparativa_aemet_sevilla.csv `
+  --model-dir models/riego_predictivo `
+  --backend auto
+```
+
+`--backend auto` intenta entrenar con Keras si TensorFlow esta disponible. Si no lo esta, entrena un modelo `linear_ridge` ligero para mantener el flujo funcionando. Para forzar Keras:
+
+```powershell
+python -m irrigation_advisor.cli train-ml `
+  --input-file data/resultados/comparativa_aemet_sevilla.csv `
+  --model-dir models/riego_predictivo `
+  --backend keras `
+  --epochs 200
+```
+
+Predecir con el modelo entrenado:
+
+```powershell
+python -m irrigation_advisor.cli predict-ml `
+  --model-dir models/riego_predictivo `
+  --weather-file data/resultados/comparativa_aemet_sevilla.csv `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --crop olivar `
+  --stage media `
+  --soil franco `
+  --area-m2 3500 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4 `
+  --output markdown
+```
+
+Tambien se puede anadir la prediccion ML al informe de cliente:
+
+```powershell
+python -m irrigation_advisor.cli recommend `
+  --weather-file data/resultados/comparativa_aemet_sevilla.csv `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --crop olivar `
+  --stage media `
+  --soil franco `
+  --area-m2 3500 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4 `
+  --ml-model-dir models/riego_predictivo
+```
+
 ## Comparativa de cultivos
 
 Para comparar los tres cultivos con el mismo escenario climatico, suelo y sistema de riego:
@@ -220,7 +282,7 @@ python -m irrigation_advisor.cli export-comparison `
 Columnas del CSV:
 
 ```text
-fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,horas_riego,ranking_demanda
+fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,superficie_m2,eficiencia_riego,lluvia_efectiva_ratio,goteros_por_planta,caudal_gotero_lph,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,horas_riego,ranking_demanda
 ```
 
 ## Exportacion con AEMET real

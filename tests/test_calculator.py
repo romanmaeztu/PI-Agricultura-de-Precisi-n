@@ -16,6 +16,7 @@ from irrigation_advisor.calculator import (
 )
 from irrigation_advisor.cli import compare_crop_reports, main, reports_to_daily_export_rows
 from irrigation_advisor.cli import build_single_crop_report, recommendation_to_dict, recommendation_to_markdown
+from irrigation_advisor.ml import training_examples_from_rows
 from irrigation_advisor.models import IrrigationSystem, WeatherDay
 
 
@@ -506,6 +507,123 @@ class CalculatorTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertIn("5783 - SEVILLA AEROPUERTO", text)
             self.assertIn("Riego medio diario", text)
+
+    def test_ml_training_examples_include_crop_and_plot_features(self) -> None:
+        rows = [
+            {
+                "fecha": "2024-05-01",
+                "estacion": "5783",
+                "provincia": "SEVILLA",
+                "cultivo": "olivar",
+                "fase": "media",
+                "suelo": "franco",
+                "superficie_m2": "3500",
+                "eficiencia_riego": "0.90",
+                "lluvia_efectiva_ratio": "0.80",
+                "et0_mm": "5.0",
+                "lluvia_mm": "0.0",
+                "tmin_c": "15.0",
+                "tmax_c": "30.0",
+                "tmedia_c": "22.5",
+                "kc": "0.7",
+                "profundidad_raices_m": "0.6",
+                "marco_m2_por_planta": "8.0",
+                "agua_facilmente_disponible_mm": "39.0",
+                "riego_bruto_mm": "3.89",
+                "litros_totales": "13611.11",
+            }
+        ]
+
+        examples = training_examples_from_rows(rows)
+
+        self.assertEqual(len(examples), 1)
+        self.assertEqual(examples[0].features["cultivo"], "olivar")
+        self.assertEqual(examples[0].features["superficie_m2"], 3500)
+        self.assertAlmostEqual(examples[0].target_mm, 3.89, places=2)
+
+    def test_cli_train_ml_linear_and_predict_from_weather_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            weather_file = Path(tmp_dir) / "training.csv"
+            model_dir = Path(tmp_dir) / "model"
+            prediction_file = Path(tmp_dir) / "prediction.json"
+            with redirect_stdout(StringIO()):
+                main(
+                    [
+                        "export-comparison",
+                        "--et0",
+                        "5",
+                        "--rain-mm",
+                        "0",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "3500",
+                        "--emitters-per-plant",
+                        "2",
+                        "--emitter-flow-lph",
+                        "4",
+                        "--output-file",
+                        str(weather_file),
+                    ]
+                )
+
+            train_output = StringIO()
+            with redirect_stdout(train_output):
+                exit_code = main(
+                    [
+                        "train-ml",
+                        "--input-file",
+                        str(weather_file),
+                        "--model-dir",
+                        str(model_dir),
+                        "--backend",
+                        "linear",
+                    ]
+                )
+
+            training_result = json.loads(train_output.getvalue())
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(training_result["model_type"], "linear_ridge")
+            self.assertTrue((model_dir / "model.json").exists())
+
+            with redirect_stdout(StringIO()):
+                exit_code = main(
+                    [
+                        "predict-ml",
+                        "--model-dir",
+                        str(model_dir),
+                        "--start",
+                        date.today().isoformat(),
+                        "--end",
+                        date.today().isoformat(),
+                        "--weather-file",
+                        str(weather_file),
+                        "--crop",
+                        "olivar",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "3500",
+                        "--emitters-per-plant",
+                        "2",
+                        "--emitter-flow-lph",
+                        "4",
+                        "--output",
+                        "json",
+                        "--output-file",
+                        str(prediction_file),
+                    ]
+                )
+
+            result = json.loads(prediction_file.read_text(encoding="utf-8"))
+            self.assertEqual(exit_code, 0)
+            self.assertIn("ml_prediction", result)
+            self.assertEqual(result["ml_prediction"]["model"]["model_type"], "linear_ridge")
+            self.assertGreater(result["ml_prediction"]["summary"]["avg_liters_day"], 0)
 
 
 if __name__ == "__main__":

@@ -15,10 +15,12 @@ from irrigation_advisor.cli import (
     resolve_station_from_args,
     weather_days_from_export,
 )
+from irrigation_advisor.ml import predict_irrigation_with_model
 from irrigation_advisor.models import CROP_DEFAULTS, SOIL_DEFAULTS
 
 
 DEFAULT_WEATHER_FILE = "data/resultados/comparativa_aemet_sevilla.csv"
+DEFAULT_MODEL_DIR = "models/riego_predictivo"
 
 
 def main() -> None:
@@ -72,6 +74,12 @@ def main() -> None:
             effective_rainfall_ratio = st.slider("Lluvia efectiva", min_value=0.00, max_value=1.00, value=0.80, step=0.05)
             emitters_per_plant = st.number_input("Goteros por planta", min_value=1, value=2, step=1)
             emitter_flow_lph = st.number_input("Caudal por gotero (L/h)", min_value=0.1, value=4.0, step=0.5)
+            use_ml_prediction = st.checkbox("Usar modelo ML entrenado")
+            ml_model_dir = st.text_input(
+                "Directorio del modelo ML",
+                value=DEFAULT_MODEL_DIR,
+                disabled=not use_ml_prediction,
+            )
 
         submitted = st.form_submit_button("Calcular recomendacion", type="primary")
 
@@ -97,6 +105,7 @@ def main() -> None:
                 source=source,
                 weather_file=weather_file,
                 args=args,
+                ml_model_dir=ml_model_dir if use_ml_prediction else None,
             )
         except Exception as exc:  # noqa: BLE001 - Streamlit should show user-facing errors.
             st.error(str(exc))
@@ -150,6 +159,7 @@ def calculate_recommendation(
     source: str,
     weather_file: str,
     args: SimpleNamespace,
+    ml_model_dir: str | None = None,
 ) -> dict:
     if date.fromisoformat(args.end) < date.fromisoformat(args.start):
         raise ValueError("La fecha final no puede ser anterior a la inicial")
@@ -177,7 +187,7 @@ def calculate_recommendation(
         )
 
     report = build_single_crop_report(args=args, weather_days=weather_days)
-    return recommendation_to_dict(
+    recommendation = recommendation_to_dict(
         report=report,
         station_id=station_id,
         station_name=station_name,
@@ -185,6 +195,16 @@ def calculate_recommendation(
         start=args.start,
         end=args.end,
     )
+    if ml_model_dir:
+        recommendation["ml_prediction"] = predict_irrigation_with_model(
+            model_dir=ml_model_dir,
+            weather_days=weather_days,
+            args=args,
+            station_id=station_id,
+            station_name=station_name,
+            province=province,
+        )
+    return recommendation
 
 
 def render_recommendation(recommendation: dict) -> None:
@@ -202,6 +222,9 @@ def render_recommendation(recommendation: dict) -> None:
     info_cols[0].metric("Superficie", f"{plot['area_m2']:,.0f} m2")
     info_cols[1].metric("ET0 media", f"{climate['et0_avg_mm_day']:.2f} mm/dia")
     info_cols[2].metric("Lluvia total", f"{climate['rain_total_mm']:.2f} mm")
+
+    if "ml_prediction" in recommendation:
+        render_ml_prediction(recommendation["ml_prediction"])
 
     st.subheader("Detalle diario")
     st.dataframe(recommendation["daily"], use_container_width=True, hide_index=True)
@@ -221,6 +244,29 @@ def render_recommendation(recommendation: dict) -> None:
     )
 
 
+def render_ml_prediction(ml_prediction: dict) -> None:
+    st.subheader("Prediccion ML")
+    summary = ml_prediction["summary"]
+    model = ml_prediction["model"]
+    cols = st.columns(4)
+    cols[0].metric("Riego medio ML", f"{summary['avg_liters_day']:,.0f} L/dia")
+    cols[1].metric("Tiempo medio ML", format_hours(summary["avg_runtime_hours_day"]))
+    cols[2].metric("Litros/planta ML", format_liters(summary["avg_liters_plant_day"]))
+    cols[3].metric("Lamina ML", f"{summary['avg_gross_mm_day']:.2f} mm")
+
+    metrics = model.get("metrics") or {}
+    if metrics:
+        st.caption(
+            "Modelo {model_type}. MAE {mae} mm; RMSE {rmse} mm; R2 {r2}.".format(
+                model_type=model["model_type"],
+                mae=format_optional_metric(metrics.get("mae_mm")),
+                rmse=format_optional_metric(metrics.get("rmse_mm")),
+                r2=format_optional_metric(metrics.get("r2")),
+            )
+        )
+    st.dataframe(ml_prediction["daily"], use_container_width=True, hide_index=True)
+
+
 def format_hours(value: float | None) -> str:
     if value is None:
         return "N/D"
@@ -231,6 +277,12 @@ def format_liters(value: float | None) -> str:
     if value is None:
         return "N/D"
     return f"{value:.2f} L/planta/dia"
+
+
+def format_optional_metric(value: object) -> str:
+    if value is None:
+        return "N/D"
+    return str(value)
 
 
 if __name__ == "__main__":
