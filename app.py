@@ -348,14 +348,21 @@ def render_recommendation(recommendation: dict) -> None:
 
     metric_cols = st.columns(4)
     metric_cols[0].metric("Riego total", f"{result['total_liters']:,.0f} L")
+    metric_cols[0].caption("Agua total para toda la parcela en el periodo seleccionado.")
     metric_cols[1].metric("Riego medio diario", f"{result['avg_liters_day']:,.0f} L/dia")
+    metric_cols[1].caption("Media diaria para toda la parcela.")
     metric_cols[2].metric("Litros por planta", format_liters(result["avg_liters_plant_day"]))
+    metric_cols[2].caption("Media diaria por planta segun el marco del cultivo.")
     metric_cols[3].metric("Lamina diaria", f"{result['avg_gross_mm_day']:.2f} mm")
+    metric_cols[3].caption("Profundidad media diaria de riego. 1 mm equivale a 1 L/m2.")
 
     info_cols = st.columns(3)
     info_cols[0].metric("Superficie", f"{plot['area_m2']:,.0f} m2")
+    info_cols[0].caption("Dimension de la parcela usada para convertir mm a litros.")
     info_cols[1].metric("ET0 media", f"{climate['et0_avg_mm_day']:.2f} mm/dia")
+    info_cols[1].caption("Evapotranspiracion de referencia media del periodo.")
     info_cols[2].metric("Lluvia total", f"{climate['rain_total_mm']:.2f} mm")
+    info_cols[2].caption("Precipitacion acumulada del periodo seleccionado.")
 
     if "ml_prediction" in recommendation:
         render_ml_prediction(recommendation["ml_prediction"])
@@ -384,9 +391,13 @@ def render_ml_prediction(ml_prediction: dict) -> None:
     model = ml_prediction["model"]
     cols = st.columns(4)
     cols[0].metric("Riego total ML", f"{summary['total_liters']:,.0f} L")
+    cols[0].caption("Prediccion total para toda la parcela en el periodo.")
     cols[1].metric("Riego medio ML", f"{summary['avg_liters_day']:,.0f} L/dia")
+    cols[1].caption("Prediccion media diaria para toda la parcela.")
     cols[2].metric("Litros/planta ML", format_liters(summary["avg_liters_plant_day"]))
+    cols[2].caption("Prediccion media diaria por planta.")
     cols[3].metric("Lamina ML", f"{summary['avg_gross_mm_day']:.2f} mm")
+    cols[3].caption("Lamina media diaria predicha por el modelo.")
 
     metrics = model.get("metrics") or {}
     if metrics:
