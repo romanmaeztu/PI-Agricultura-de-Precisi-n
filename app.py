@@ -39,18 +39,23 @@ def main() -> None:
         index=0 if Path(DEFAULT_WEATHER_FILE).exists() else 1,
     )
 
+    station = ""
+    province = "SEVILLA"
+    station_name = "AEROPUERTO"
+    if source == "AEMET API":
+        station, province, station_name = render_aemet_station_selector()
+
     with st.form("recommendation_form"):
         location_col, date_col = st.columns(2)
         with location_col:
-            station = ""
-            province = "SEVILLA"
-            station_name = "AEROPUERTO"
-            if source == "AEMET API":
-                station, province, station_name = render_aemet_station_selector()
-            else:
+            if source == "CSV local":
                 station = st.text_input("Indicativo AEMET", value="")
                 province = st.text_input("Provincia", value="SEVILLA")
                 station_name = st.text_input("Nombre de estacion", value="AEROPUERTO")
+            else:
+                st.text_input("Indicativo AEMET", value=station, disabled=True)
+                st.text_input("Provincia", value=province, disabled=True)
+                st.text_input("Nombre de estacion", value=station_name, disabled=True)
             weather_file = st.text_input(
                 "CSV climatico",
                 value=DEFAULT_WEATHER_FILE,
@@ -135,7 +140,7 @@ def render_aemet_station_selector() -> tuple[str, str, str]:
     province = st.selectbox(
         "Provincia",
         options=provinces,
-        index=province_default_index(provinces, preferred="SEVILLA"),
+        index=province_default_index(provinces, preferred=ALL_PROVINCES),
     )
     filtered_stations = filter_station_options(stations=stations, province=province)
     station_by_label = {station_option_label(item): item for item in filtered_stations}

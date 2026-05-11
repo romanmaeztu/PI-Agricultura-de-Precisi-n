@@ -9,7 +9,13 @@ import tempfile
 import unittest
 
 import irrigation_advisor.cli as cli_module
-from app import ALL_PROVINCES, filter_station_options, station_default_index, station_option_label
+from app import (
+    ALL_PROVINCES,
+    filter_station_options,
+    province_default_index,
+    station_default_index,
+    station_option_label,
+)
 from irrigation_advisor.aemet_client import Station
 from irrigation_advisor.calculator import (
     build_crop_profile,
@@ -769,6 +775,7 @@ class CalculatorTests(unittest.TestCase):
         self.assertEqual(len(sevilla), 1)
         self.assertEqual(sevilla[0]["indicativo"], "5783")
         self.assertIn("SEVILLA | SEVILLA AEROPUERTO | 5783", labels)
+        self.assertEqual(province_default_index([ALL_PROVINCES, "SEVILLA"], preferred=ALL_PROVINCES), 0)
         self.assertEqual(station_default_index(labels, preferred="SEVILLA AEROPUERTO"), 1)
 
 
