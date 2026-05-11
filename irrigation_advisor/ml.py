@@ -15,6 +15,7 @@ from .models import IrrigationSystem, WeatherDay
 
 
 TARGET_FIELD = "riego_bruto_mm"
+OPERATIONAL_OUTPUT_FIELDS = {"goteros_por_planta", "caudal_gotero_lph", "caudal_planta_lph"}
 
 NUMERIC_FIELDS = [
     "day_sin",
@@ -30,9 +31,6 @@ NUMERIC_FIELDS = [
     "agua_facilmente_disponible_mm",
     "eficiencia_riego",
     "lluvia_efectiva_ratio",
-    "goteros_por_planta",
-    "caudal_gotero_lph",
-    "caudal_planta_lph",
 ]
 
 CATEGORICAL_FIELDS = ["estacion", "provincia", "cultivo", "fase", "suelo"]
@@ -417,6 +415,7 @@ def predict_irrigation_with_model(
         station_id=station_id,
         province=province,
     )
+    rows = stabilize_operational_fields(rows=rows, schema=predictor.schema)
     predicted_mm = predictor.predict_mm(rows)
     daily = []
     for row, gross_mm in zip(rows, predicted_mm):
@@ -520,6 +519,16 @@ def prediction_rows_from_weather(
             }
         )
     return rows, system
+
+
+def stabilize_operational_fields(rows: list[dict], schema: FeatureSchema) -> list[dict]:
+    stabilized = []
+    for row in rows:
+        copy = dict(row)
+        for field in OPERATIONAL_OUTPUT_FIELDS.intersection(schema.numeric_fields):
+            copy[field] = schema.numeric_means.get(field, copy.get(field, 0.0))
+        stabilized.append(copy)
+    return stabilized
 
 
 def build_feature_schema(examples: list[TrainingExample]) -> FeatureSchema:

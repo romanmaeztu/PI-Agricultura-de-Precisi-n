@@ -160,7 +160,9 @@ La interfaz permite elegir cualquier estacion del inventario AEMET de Espana med
 
 ## Capa predictiva ML/Keras
 
-El proyecto ya incluye una capa predictiva entrenable. El objetivo del modelo es predecir `riego_bruto_mm` a partir de historicos AEMET exportados y variables de cultivo/parcela: estacion, provincia, fecha, ET0, lluvia, temperaturas, cultivo, fase, suelo, Kc, profundidad radicular, marco de plantacion, eficiencia y caudal. La superficie se aplica despues para convertir la lamina predicha a litros del cliente.
+El proyecto ya incluye una capa predictiva entrenable. El objetivo del modelo es predecir `riego_bruto_mm` a partir de historicos AEMET exportados y variables de cultivo/parcela: estacion, provincia, fecha, ET0, lluvia, temperaturas, cultivo, fase, suelo, Kc, profundidad radicular, marco de plantacion y eficiencia. La superficie se aplica despues para convertir la lamina predicha a litros del cliente.
+
+Los goteros y el caudal no se usan para predecir la lamina de riego en mm, porque no cambian la necesidad hidrica del cultivo. Solo se aplican al final para convertir los litros por planta en horas de riego. Esto evita que el modelo reduzca o aumente artificialmente el agua recomendada cuando el usuario cambia el numero de goteros.
 
 La capa agronomica sigue siendo la referencia trazable. La capa ML aprende sobre el historico generado/validado y permite ofrecer una prediccion como servicio. Cuando existan datos reales de sensores o decisiones de riego en campo, la misma estructura puede sustituir la variable objetivo por riego real aplicado o humedad objetivo alcanzada.
 

@@ -302,6 +302,8 @@ El entrenamiento se realiza a partir de un dataset que cruza:
 
 El modelo utiliza como entrada variables numéricas y categóricas. Las variables categóricas se codifican internamente y las numéricas se normalizan. La salida es la lámina de riego bruto en milímetros.
 
+Los goteros y el caudal se mantienen fuera de las variables predictoras de la lámina de riego. Su función es operativa: una vez estimados los milímetros y litros necesarios, sirven para calcular el tiempo de riego. De esta forma, cambiar el número de goteros no altera la necesidad hídrica del cultivo, sino únicamente la duración del riego.
+
 ### 3.8 Cronograma
 
 | Semana | Actividad | Resultado |
@@ -394,13 +396,13 @@ Este resultado convierte los cálculos técnicos en una recomendación entendibl
 
 ### 4.5 Resultado del modelo ML/Keras
 
-El modelo Keras se entrenó con un dataset de 168 filas y 27 variables de entrada. La validación interna obtuvo:
+El modelo Keras se entrenó con un dataset de 168 filas y 24 variables de entrada. La validación interna obtuvo:
 
 | Métrica | Resultado |
 |---|---:|
 | MAE | 0,0289 mm |
-| RMSE | 0,0358 mm |
-| R2 | 0,9978 |
+| RMSE | 0,0381 mm |
+| R2 | 0,9975 |
 | Filas de validación | 33 |
 
 El modelo supera el umbral del 85 % si se interpreta la precisión como R2 en un problema de regresión. No obstante, este dato debe presentarse con rigor: el modelo aprende a reproducir el cálculo agronómico sobre el dataset generado, no una verdad de campo medida con sensores.
@@ -611,4 +613,3 @@ python -m irrigation_advisor.cli predict-ml `
 - BigQuery está definido como arquitectura, pero no desplegado.
 - Los coeficientes de cultivo son valores de referencia y deben calibrarse por variedad, manejo y fase real.
 - La predicción usa históricos y cálculo agronómico como base; para operación comercial debe validarse en campo.
-

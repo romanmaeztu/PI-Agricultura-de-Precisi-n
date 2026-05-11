@@ -635,6 +635,82 @@ class CalculatorTests(unittest.TestCase):
             self.assertEqual(result["ml_prediction"]["model"]["model_type"], "linear_ridge")
             self.assertGreater(result["ml_prediction"]["summary"]["avg_liters_day"], 0)
 
+    def test_ml_lamina_does_not_change_when_only_emitters_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            weather_file = Path(tmp_dir) / "training.csv"
+            model_dir = Path(tmp_dir) / "model"
+
+            with redirect_stdout(StringIO()):
+                main(
+                    [
+                        "export-comparison",
+                        "--et0",
+                        "5",
+                        "--rain-mm",
+                        "0",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "3500",
+                        "--emitters-per-plant",
+                        "2",
+                        "--emitter-flow-lph",
+                        "4",
+                        "--output-file",
+                        str(weather_file),
+                    ]
+                )
+                main(
+                    [
+                        "train-ml",
+                        "--input-file",
+                        str(weather_file),
+                        "--model-dir",
+                        str(model_dir),
+                        "--backend",
+                        "linear",
+                    ]
+                )
+
+            predictions = []
+            for emitters in ("1", "2"):
+                output = StringIO()
+                with redirect_stdout(output):
+                    exit_code = main(
+                        [
+                            "predict-ml",
+                            "--model-dir",
+                            str(model_dir),
+                            "--weather-file",
+                            str(weather_file),
+                            "--start",
+                            date.today().isoformat(),
+                            "--end",
+                            date.today().isoformat(),
+                            "--crop",
+                            "olivar",
+                            "--stage",
+                            "media",
+                            "--soil",
+                            "franco",
+                            "--area-m2",
+                            "3500",
+                            "--emitters-per-plant",
+                            emitters,
+                            "--emitter-flow-lph",
+                            "4",
+                            "--output",
+                            "json",
+                        ]
+                    )
+                self.assertEqual(exit_code, 0)
+                predictions.append(json.loads(output.getvalue())["ml_prediction"]["summary"])
+
+            self.assertAlmostEqual(predictions[0]["avg_gross_mm_day"], predictions[1]["avg_gross_mm_day"], places=2)
+            self.assertGreater(predictions[0]["avg_runtime_hours_day"], predictions[1]["avg_runtime_hours_day"])
+
     def test_cli_build_ml_dataset_crosses_stations_crops_and_soils(self) -> None:
         class FakeAemetClient:
             stations = [
