@@ -164,6 +164,12 @@ El proyecto ya incluye una capa predictiva entrenable. El objetivo del modelo es
 
 La capa agronomica sigue siendo la referencia trazable. La capa ML aprende sobre el historico generado/validado y permite ofrecer una prediccion como servicio. Cuando existan datos reales de sensores o decisiones de riego en campo, la misma estructura puede sustituir la variable objetivo por riego real aplicado o humedad objetivo alcanzada.
 
+Instalar dependencias ML:
+
+```powershell
+python -m pip install -r requirements-ml.txt
+```
+
 Entrenar modelo:
 
 ```powershell
@@ -230,7 +236,7 @@ python -m irrigation_advisor.cli build-ml-dataset `
 ```powershell
 python -m irrigation_advisor.cli train-ml `
   --input-file data/resultados/comparativa_aemet_sevilla.csv `
-  --model-dir models/riego_predictivo `
+  --model-dir models/riego_predictivo_keras `
   --backend keras `
   --epochs 200
 ```
@@ -239,7 +245,7 @@ Predecir con el modelo entrenado:
 
 ```powershell
 python -m irrigation_advisor.cli predict-ml `
-  --model-dir models/riego_predictivo `
+  --model-dir models/riego_predictivo_keras `
   --weather-file data/resultados/comparativa_aemet_sevilla.csv `
   --province SEVILLA `
   --station-name AEROPUERTO `
@@ -271,6 +277,8 @@ python -m irrigation_advisor.cli recommend `
   --emitter-flow-lph 4 `
   --ml-model-dir models/riego_predictivo
 ```
+
+Si se usa el modelo TensorFlow/Keras entrenado, sustituir `models/riego_predictivo` por `models/riego_predictivo_keras`.
 
 ## Comparativa de cultivos
 
