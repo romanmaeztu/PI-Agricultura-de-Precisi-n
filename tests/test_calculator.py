@@ -27,6 +27,7 @@ from irrigation_advisor.cli import compare_crop_reports, main, reports_to_daily_
 from irrigation_advisor.cli import build_single_crop_report, recommendation_to_dict, recommendation_to_markdown
 from irrigation_advisor.ml import training_examples_from_rows
 from irrigation_advisor.models import IrrigationSystem, WeatherDay
+from irrigation_advisor.weather_cache import AemetCache
 
 
 class CalculatorTests(unittest.TestCase):
@@ -777,6 +778,141 @@ class CalculatorTests(unittest.TestCase):
         self.assertIn("SEVILLA | SEVILLA AEROPUERTO | 5783", labels)
         self.assertEqual(province_default_index([ALL_PROVINCES, "SEVILLA"], preferred=ALL_PROVINCES), 0)
         self.assertEqual(station_default_index(labels, preferred="SEVILLA AEROPUERTO"), 1)
+
+    def test_aemet_cache_stores_station_and_weather_range(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache = AemetCache(str(Path(tmp_dir) / "aemet.sqlite"))
+            station = Station("5783", "SEVILLA AEROPUERTO", "SEVILLA", 37.42, -5.90)
+            weather_days = [
+                WeatherDay(date=date(2024, 5, 1), et0_mm=4.0, rain_mm=0.0, tmin_c=10.0, tmax_c=22.0, tmean_c=16.0),
+                WeatherDay(date=date(2024, 5, 2), et0_mm=4.5, rain_mm=1.0, tmin_c=11.0, tmax_c=23.0, tmean_c=17.0),
+            ]
+
+            self.assertEqual(cache.upsert_stations([station]), 1)
+            self.assertEqual(cache.upsert_weather(station=station, weather_days=weather_days), 2)
+
+            source = cache.get_weather_source(
+                station_id="5783",
+                start=date(2024, 5, 1),
+                end=date(2024, 5, 2),
+            )
+            counts = cache.counts()
+
+            self.assertEqual(source.station_name, "SEVILLA AEROPUERTO")
+            self.assertEqual(len(source.weather_days), 2)
+            self.assertEqual(counts["stations"], 1)
+            self.assertEqual(counts["daily_weather"], 2)
+
+    def test_aemet_cache_reports_missing_weather_days(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache = AemetCache(str(Path(tmp_dir) / "aemet.sqlite"))
+            station = Station("5783", "SEVILLA AEROPUERTO", "SEVILLA", 37.42, -5.90)
+            cache.upsert_stations([station])
+            cache.upsert_weather(
+                station=station,
+                weather_days=[
+                    WeatherDay(date=date(2024, 5, 1), et0_mm=4.0, rain_mm=0.0),
+                    WeatherDay(date=date(2024, 5, 3), et0_mm=5.0, rain_mm=0.0),
+                ],
+            )
+
+            with self.assertRaisesRegex(ValueError, "Faltan 1 dias"):
+                cache.get_weather_source(
+                    station_id="5783",
+                    start=date(2024, 5, 1),
+                    end=date(2024, 5, 3),
+                )
+
+    def test_cli_recommend_uses_aemet_cache_without_api_call(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache = AemetCache(str(Path(tmp_dir) / "aemet.sqlite"))
+            station = Station("5783", "SEVILLA AEROPUERTO", "SEVILLA", 37.42, -5.90)
+            cache.upsert_stations([station])
+            cache.upsert_weather(
+                station=station,
+                weather_days=[
+                    WeatherDay(date=date(2024, 5, 1), et0_mm=5.0, rain_mm=0.0, tmin_c=12.0, tmax_c=25.0, tmean_c=18.5)
+                ],
+            )
+
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "recommend",
+                        "--cache-db",
+                        str(cache.db_file),
+                        "--station",
+                        "5783",
+                        "--start",
+                        "2024-05-01",
+                        "--end",
+                        "2024-05-01",
+                        "--crop",
+                        "olivar",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "3500",
+                        "--emitters-per-plant",
+                        "2",
+                        "--emitter-flow-lph",
+                        "4",
+                        "--output",
+                        "json",
+                    ]
+                )
+
+            result = json.loads(output.getvalue())
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(result["location"]["station"], "5783")
+            self.assertEqual(result["period"]["days"], 1)
+            self.assertGreater(result["recommendation"]["total_liters"], 0)
+
+    def test_cli_build_ml_dataset_uses_aemet_cache_without_api_call(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache = AemetCache(str(Path(tmp_dir) / "aemet.sqlite"))
+            output_file = Path(tmp_dir) / "dataset.csv"
+            station = Station("5783", "SEVILLA AEROPUERTO", "SEVILLA", 37.42, -5.90)
+            cache.upsert_stations([station])
+            cache.upsert_weather(
+                station=station,
+                weather_days=[
+                    WeatherDay(date=date(2024, 5, 1), et0_mm=5.0, rain_mm=0.0, tmin_c=12.0, tmax_c=25.0, tmean_c=18.5)
+                ],
+            )
+
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "build-ml-dataset",
+                        "--cache-db",
+                        str(cache.db_file),
+                        "--station",
+                        "5783",
+                        "--start",
+                        "2024-05-01",
+                        "--end",
+                        "2024-05-01",
+                        "--crop",
+                        "olivar",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--output-file",
+                        str(output_file),
+                    ]
+                )
+
+            result = json.loads(output.getvalue())
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(result["rows"], 1)
+            self.assertEqual(result["stations_ok"], 1)
+            self.assertTrue(output_file.exists())
 
 
 if __name__ == "__main__":

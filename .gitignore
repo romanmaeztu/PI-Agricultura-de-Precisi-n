@@ -14,5 +14,9 @@ htmlcov/
 Thumbs.db
 data/resultados/*
 !data/resultados/README.md
+data/*.sqlite
+data/*.sqlite3
+data/*.db
+data/cache/
 models/*
 !models/README.md

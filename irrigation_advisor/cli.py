@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import time
 from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,6 +13,7 @@ from .aemet_client import AemetClient, Station
 from .calculator import build_crop_profile, build_soil_profile, recommend_irrigation
 from .ml import predict_irrigation_with_model, train_irrigation_model
 from .models import CROP_DEFAULTS, SOIL_DEFAULTS, IrrigationReport, IrrigationSystem, WeatherDay
+from .weather_cache import AemetCache, DEFAULT_CACHE_DB
 
 
 EXPORT_FIELDNAMES = [
@@ -78,8 +80,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "stations":
-        client = AemetClient()
-        stations = client.get_station_inventory()
+        if args.from_cache:
+            stations = AemetCache(args.cache_db).get_stations()
+        else:
+            client = AemetClient()
+            stations = client.get_station_inventory()
         if args.province:
             province = args.province.lower()
             stations = [item for item in stations if province in item.provincia.lower()]
@@ -102,6 +107,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 indent=2,
             )
         )
+        return 0
+
+    if args.command == "sync-aemet-cache":
+        result = sync_aemet_cache(args)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "crops":
@@ -135,22 +145,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "export-aemet-comparison":
-        client = AemetClient()
-        station = resolve_station_from_args(client=client, args=args)
-        latitude = args.latitude or (station.latitude_deg if station else None)
-        weather_days = client.get_daily_climate(
-            station_id=station.indicativo,
-            start=date.fromisoformat(args.start),
-            end=date.fromisoformat(args.end),
-            latitude_deg=latitude,
-        )
+        weather_days, station_id, station_name, province = load_weather_from_args(args)
         reports = compare_crop_reports(args=args, weather_days=weather_days)
         rows = reports_to_daily_export_rows(
             reports=reports,
             soil_name=args.soil,
-            station_id=station.indicativo,
-            station_name=station.nombre if station else None,
-            province=station.provincia if station else None,
+            station_id=station_id,
+            station_name=station_name,
+            province=province,
             effective_rainfall_ratio=args.effective_rainfall_ratio,
         )
         output_format = args.file_format or infer_export_format(args.output_file)
@@ -160,9 +162,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 {
                     "output_file": str(Path(args.output_file)),
                     "format": output_format,
-                    "station": station.indicativo,
-                    "station_name": station.nombre,
-                    "province": station.provincia,
+                    "station": station_id,
+                    "station_name": station_name,
+                    "province": province,
                     "start": args.start,
                     "end": args.end,
                     "weather_days": len(weather_days),
@@ -355,6 +357,26 @@ def build_parser() -> argparse.ArgumentParser:
     stations = subparsers.add_parser("stations", help="Busca estaciones AEMET por provincia o nombre.")
     stations.add_argument("--province", help="Filtro por provincia, por ejemplo SEVILLA.")
     stations.add_argument("--name", help="Filtro por nombre de estacion.")
+    stations.add_argument("--from-cache", action="store_true", help="Lee el inventario desde la cache SQLite local.")
+    stations.add_argument("--cache-db", default=DEFAULT_CACHE_DB, help="Ruta de la cache SQLite.")
+
+    sync_cache = subparsers.add_parser(
+        "sync-aemet-cache",
+        help="Sincroniza estaciones y datos diarios AEMET en una cache SQLite local.",
+    )
+    sync_cache.add_argument("--db-file", default=DEFAULT_CACHE_DB, help="Ruta de la cache SQLite.")
+    sync_cache.add_argument("--station", action="append", help="Indicativo AEMET. Puede repetirse.")
+    sync_cache.add_argument("--province", help="Provincia para filtrar estaciones.")
+    sync_cache.add_argument("--station-name", help="Texto del nombre de estacion.")
+    sync_cache.add_argument("--start", help="Fecha inicial YYYY-MM-DD. Si se omite, solo actualiza estaciones.")
+    sync_cache.add_argument("--end", help="Fecha final YYYY-MM-DD. Si se omite, solo actualiza estaciones.")
+    sync_cache.add_argument("--max-stations", type=int, default=25, help="Limite de estaciones por ejecucion.")
+    sync_cache.add_argument("--all-stations", action="store_true", help="Sincroniza todas las estaciones filtradas.")
+    sync_cache.add_argument("--force", action="store_true", help="Vuelve a descargar aunque los dias ya existan.")
+    sync_cache.add_argument("--request-delay", type=float, default=1.0, help="Pausa entre peticiones a AEMET.")
+    sync_cache.add_argument("--retries", type=int, default=2, help="Reintentos por rango fallido.")
+    sync_cache.add_argument("--retry-delay", type=float, default=10.0, help="Pausa entre reintentos.")
+    sync_cache.add_argument("--strict", action="store_true", help="Detiene el proceso ante el primer fallo.")
 
     subparsers.add_parser("crops", help="Muestra los tres perfiles de cultivo configurados.")
 
@@ -401,6 +423,7 @@ def build_parser() -> argparse.ArgumentParser:
     export_aemet.add_argument("--start", required=True, help="Fecha inicial YYYY-MM-DD.")
     export_aemet.add_argument("--end", required=True, help="Fecha final YYYY-MM-DD.")
     export_aemet.add_argument("--latitude", type=float, help="Latitud decimal si AEMET no aporta ET0.")
+    export_aemet.add_argument("--cache-db", help="Lee los datos climaticos desde la cache SQLite en vez de llamar a AEMET.")
     export_aemet.add_argument("--stage", required=True, help="Fase comun: inicio, desarrollo, media, madurez.")
     export_aemet.add_argument("--soil", required=True, help="Tipo: arenoso, franco_arenoso, franco, franco_arcilloso, arcilloso.")
     export_aemet.add_argument("--area-m2", type=float, required=True, help="Superficie de la parcela en m2.")
@@ -422,6 +445,7 @@ def build_parser() -> argparse.ArgumentParser:
     ml_dataset.add_argument("--province", help="Provincia para filtrar estaciones, por ejemplo SEVILLA.")
     ml_dataset.add_argument("--station-name", help="Texto del nombre de estacion, por ejemplo AEROPUERTO.")
     ml_dataset.add_argument("--weather-file", help="CSV/JSON AEMET ya exportado para construir el dataset sin llamar a la API.")
+    ml_dataset.add_argument("--cache-db", help="Cache SQLite AEMET para construir el dataset sin llamar a la API.")
     ml_dataset.add_argument("--max-stations", type=int, default=3)
     ml_dataset.add_argument("--start", required=True, help="Fecha inicial YYYY-MM-DD.")
     ml_dataset.add_argument("--end", required=True, help="Fecha final YYYY-MM-DD.")
@@ -478,6 +502,7 @@ def build_parser() -> argparse.ArgumentParser:
     recommend.add_argument("--end", required=True, help="Fecha final YYYY-MM-DD.")
     recommend.add_argument("--latitude", type=float, help="Latitud decimal si AEMET no aporta ET0.")
     recommend.add_argument("--weather-file", help="CSV/JSON de AEMET ya exportado para evitar llamar de nuevo a la API.")
+    recommend.add_argument("--cache-db", help="Cache SQLite AEMET para evitar llamar de nuevo a la API.")
     add_common_arguments(recommend)
     recommend.add_argument("--output", choices=["json", "markdown"], default="markdown")
     recommend.add_argument("--output-file", help="Ruta opcional para guardar el informe.")
@@ -492,6 +517,7 @@ def build_parser() -> argparse.ArgumentParser:
     predict_ml.add_argument("--end", required=True, help="Fecha final YYYY-MM-DD.")
     predict_ml.add_argument("--latitude", type=float, help="Latitud decimal si AEMET no aporta ET0.")
     predict_ml.add_argument("--weather-file", help="CSV/JSON de AEMET ya exportado para evitar llamar de nuevo a la API.")
+    predict_ml.add_argument("--cache-db", help="Cache SQLite AEMET para evitar llamar de nuevo a la API.")
     add_common_arguments(predict_ml)
     predict_ml.add_argument("--output", choices=["json", "markdown"], default="markdown")
     predict_ml.add_argument("--output-file", help="Ruta opcional para guardar el informe.")
@@ -527,6 +553,9 @@ def build_ml_dataset_from_aemet(args: argparse.Namespace) -> dict:
 
     if args.weather_file:
         weather_sources = weather_sources_from_export(args)
+        station_count = len(weather_sources)
+    elif args.cache_db:
+        weather_sources = weather_sources_from_cache(args)
         station_count = len(weather_sources)
     else:
         client = AemetClient()
@@ -622,6 +651,116 @@ def build_ml_dataset_from_aemet(args: argparse.Namespace) -> dict:
     return result
 
 
+def sync_aemet_cache(args: argparse.Namespace) -> dict:
+    cache = AemetCache(args.db_file)
+    client = AemetClient()
+    stations = client.get_station_inventory()
+    stations_upserted = cache.upsert_stations(stations)
+
+    start = date.fromisoformat(args.start) if args.start else None
+    end = date.fromisoformat(args.end) if args.end else None
+    if (start is None) != (end is None):
+        raise ValueError("Indica --start y --end juntos, o ninguno para sincronizar solo estaciones")
+    if start and end and end < start:
+        raise ValueError("La fecha final no puede ser anterior a la inicial")
+
+    selected = resolve_sync_stations(stations=stations, args=args)
+    if not args.all_stations:
+        if args.max_stations <= 0:
+            raise ValueError("--max-stations debe ser positivo")
+        selected = selected[: args.max_stations]
+
+    result = {
+        "db_file": str(Path(args.db_file)),
+        "stations_inventory": len(stations),
+        "stations_upserted": stations_upserted,
+        "stations_selected": len(selected),
+        "weather_rows_upserted": 0,
+        "ranges_requested": 0,
+        "errors": [],
+        "counts": cache.counts(),
+    }
+    if start is None or end is None:
+        result["mode"] = "stations_only"
+        return result
+
+    for station_index, station in enumerate(selected, start=1):
+        ranges = [(start, end)] if args.force else cache.missing_ranges(station.indicativo, start, end)
+        if not ranges:
+            continue
+        for range_start, range_end in ranges:
+            try:
+                weather_days = fetch_daily_climate_with_retries(
+                    client=client,
+                    station=station,
+                    start=range_start,
+                    end=range_end,
+                    retries=args.retries,
+                    retry_delay=args.retry_delay,
+                )
+                result["ranges_requested"] += 1
+                result["weather_rows_upserted"] += cache.upsert_weather(station=station, weather_days=weather_days)
+            except Exception as exc:  # noqa: BLE001 - station-level ETL should continue unless strict.
+                error = {
+                    "station": station.indicativo,
+                    "station_name": station.nombre,
+                    "province": station.provincia,
+                    "start": range_start.isoformat(),
+                    "end": range_end.isoformat(),
+                    "error": str(exc),
+                }
+                result["errors"].append(error)
+                if args.strict:
+                    raise
+            if args.request_delay > 0 and station_index < len(selected):
+                time.sleep(args.request_delay)
+
+    result["mode"] = "weather"
+    result["counts"] = cache.counts()
+    return result
+
+
+def fetch_daily_climate_with_retries(
+    client: AemetClient,
+    station: Station,
+    start: date,
+    end: date,
+    retries: int,
+    retry_delay: float,
+) -> list[WeatherDay]:
+    attempts = max(0, retries) + 1
+    last_error: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            return client.get_daily_climate(
+                station_id=station.indicativo,
+                start=start,
+                end=end,
+                latitude_deg=station.latitude_deg,
+            )
+        except Exception as exc:  # noqa: BLE001 - retry wrapper preserves final error.
+            last_error = exc
+            if attempt < attempts - 1 and retry_delay > 0:
+                time.sleep(retry_delay)
+    if last_error:
+        raise last_error
+    return []
+
+
+def resolve_sync_stations(stations: list[Station], args: argparse.Namespace) -> list[Station]:
+    if args.station:
+        by_id = {station.indicativo: station for station in stations}
+        missing = [station_id for station_id in args.station if station_id not in by_id]
+        if missing:
+            raise ValueError(f"No se encontraron estaciones AEMET: {', '.join(missing)}")
+        return unique_stations([by_id[station_id] for station_id in args.station])
+
+    matches = filter_stations(stations=stations, province=args.province, station_name=args.station_name)
+    if not matches:
+        raise ValueError("No se encontraron estaciones AEMET para sincronizar")
+    return matches
+
+
 def resolve_dataset_stations(client: AemetClient, args: argparse.Namespace) -> list[Station]:
     if args.station:
         stations = []
@@ -710,6 +849,25 @@ def weather_sources_from_export(args: argparse.Namespace) -> list[tuple[list[Wea
     return sources
 
 
+def weather_sources_from_cache(args: argparse.Namespace) -> list[tuple[list[WeatherDay], str, str | None, str | None]]:
+    cache = AemetCache(args.cache_db)
+    start = date.fromisoformat(args.start)
+    end = date.fromisoformat(args.end)
+    stations = resolve_dataset_stations(client=cache, args=args)
+    sources = []
+    for station in stations:
+        source = cache.get_weather_source(station_id=station.indicativo, start=start, end=end)
+        sources.append(
+            (
+                source.weather_days,
+                source.station_id,
+                source.station_name,
+                source.province,
+            )
+        )
+    return sources
+
+
 def unique_stations(stations: list[Station]) -> list[Station]:
     seen = set()
     result = []
@@ -731,6 +889,17 @@ def load_weather_from_args(args: argparse.Namespace) -> tuple[list[WeatherDay], 
             start=args.start,
             end=args.end,
         )
+
+    cache_db = getattr(args, "cache_db", None)
+    if cache_db:
+        cache = AemetCache(cache_db)
+        station = resolve_station_from_args(client=cache, args=args)
+        source = cache.get_weather_source(
+            station_id=station.indicativo,
+            start=date.fromisoformat(args.start),
+            end=date.fromisoformat(args.end),
+        )
+        return source.weather_days, source.station_id, source.station_name, source.province
 
     client = AemetClient()
     station = resolve_station_from_args(client=client, args=args)

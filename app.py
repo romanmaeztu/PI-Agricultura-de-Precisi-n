@@ -17,10 +17,12 @@ from irrigation_advisor.cli import (
 )
 from irrigation_advisor.ml import predict_irrigation_with_model
 from irrigation_advisor.models import CROP_DEFAULTS, SOIL_DEFAULTS
+from irrigation_advisor.weather_cache import AemetCache, DEFAULT_CACHE_DB
 
 
 DEFAULT_WEATHER_FILE = "data/resultados/comparativa_aemet_sevilla.csv"
 DEFAULT_MODEL_DIR = "models/riego_predictivo"
+DEFAULT_CACHE_FILE = DEFAULT_CACHE_DB
 ALL_PROVINCES = "Todas las provincias"
 
 
@@ -32,18 +34,20 @@ def main() -> None:
 
     st.title("Recomendacion de riego")
 
+    source_options = ["Cache local", "CSV local", "AEMET API"]
+    source_index = 0 if Path(DEFAULT_CACHE_FILE).exists() else (1 if Path(DEFAULT_WEATHER_FILE).exists() else 2)
     source = st.radio(
         "Datos climaticos",
-        ["CSV local", "AEMET API"],
+        source_options,
         horizontal=True,
-        index=0 if Path(DEFAULT_WEATHER_FILE).exists() else 1,
+        index=source_index,
     )
 
     station = ""
     province = "SEVILLA"
     station_name = "AEROPUERTO"
-    if source == "AEMET API":
-        station, province, station_name = render_aemet_station_selector()
+    if source in {"Cache local", "AEMET API"}:
+        station, province, station_name = render_station_selector(source=source)
 
     with st.form("recommendation_form"):
         location_col, date_col = st.columns(2)
@@ -56,6 +60,11 @@ def main() -> None:
                 st.text_input("Indicativo AEMET", value=station, disabled=True)
                 st.text_input("Provincia", value=province, disabled=True)
                 st.text_input("Nombre de estacion", value=station_name, disabled=True)
+            cache_file = st.text_input(
+                "Cache SQLite",
+                value=DEFAULT_CACHE_FILE,
+                disabled=source != "Cache local",
+            )
             weather_file = st.text_input(
                 "CSV climatico",
                 value=DEFAULT_WEATHER_FILE,
@@ -116,6 +125,7 @@ def main() -> None:
             recommendation = calculate_recommendation(
                 source=source,
                 weather_file=weather_file,
+                cache_file=cache_file,
                 args=args,
                 ml_model_dir=ml_model_dir if use_ml_prediction else None,
             )
@@ -126,11 +136,17 @@ def main() -> None:
         render_recommendation(recommendation)
 
 
-def render_aemet_station_selector() -> tuple[str, str, str]:
+def render_station_selector(source: str) -> tuple[str, str, str]:
     try:
-        stations = load_aemet_station_inventory()
+        stations = load_cached_station_inventory() if source == "Cache local" else load_aemet_station_inventory()
     except Exception as exc:  # noqa: BLE001 - Streamlit should keep a manual fallback.
-        st.warning(f"No se pudo cargar el inventario AEMET: {exc}")
+        st.warning(f"No se pudo cargar el inventario de estaciones: {exc}")
+        station = st.text_input("Indicativo AEMET", value="")
+        province = st.text_input("Provincia", value="SEVILLA")
+        station_name = st.text_input("Nombre de estacion", value="AEROPUERTO")
+        return station, province, station_name
+    if not stations:
+        st.warning("La cache local no contiene estaciones. Ejecuta sync-aemet-cache antes de usar este modo.")
         station = st.text_input("Indicativo AEMET", value="")
         province = st.text_input("Provincia", value="SEVILLA")
         station_name = st.text_input("Nombre de estacion", value="AEROPUERTO")
@@ -170,6 +186,21 @@ def load_aemet_station_inventory() -> list[dict[str, str | float | None]]:
             "longitude_deg": station.longitude_deg,
         }
         for station in client.get_station_inventory()
+    ]
+
+
+@st.cache_data(ttl=5 * 60, show_spinner=False)
+def load_cached_station_inventory() -> list[dict[str, str | float | None]]:
+    cache = AemetCache(DEFAULT_CACHE_FILE)
+    return [
+        {
+            "indicativo": station.indicativo,
+            "nombre": station.nombre,
+            "provincia": station.provincia,
+            "latitude_deg": station.latitude_deg,
+            "longitude_deg": station.longitude_deg,
+        }
+        for station in cache.get_stations()
     ]
 
 
@@ -256,6 +287,7 @@ def build_args(
 def calculate_recommendation(
     source: str,
     weather_file: str,
+    cache_file: str,
     args: SimpleNamespace,
     ml_model_dir: str | None = None,
 ) -> dict:
@@ -271,6 +303,18 @@ def calculate_recommendation(
             start=args.start,
             end=args.end,
         )
+    elif source == "Cache local":
+        cache = AemetCache(cache_file)
+        station = resolve_station_from_args(client=cache, args=args)
+        source_data = cache.get_weather_source(
+            station_id=station.indicativo,
+            start=date.fromisoformat(args.start),
+            end=date.fromisoformat(args.end),
+        )
+        weather_days = source_data.weather_days
+        station_id = source_data.station_id
+        station_name = source_data.station_name
+        province = source_data.province
     else:
         client = AemetClient()
         station = resolve_station_from_args(client=client, args=args)

@@ -371,6 +371,71 @@ $env:AEMET_API_KEY = "tu_api_key"
 
 Si AEMET no devuelve ET0 directamente, el programa estima ET0 con Hargreaves-Samani a partir de temperatura maxima, minima y latitud de la estacion.
 
+## Cache local AEMET
+
+Para evitar saturar AEMET, el flujo recomendado es sincronizar datos una vez y consultar despues la cache local SQLite:
+
+```powershell
+python -m irrigation_advisor.cli sync-aemet-cache `
+  --db-file data/aemet_cache.sqlite
+```
+
+El comando anterior descarga el inventario nacional de estaciones y lo guarda localmente. Para cargar datos climaticos diarios de forma controlada:
+
+```powershell
+python -m irrigation_advisor.cli sync-aemet-cache `
+  --db-file data/aemet_cache.sqlite `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --request-delay 1.5 `
+  --max-stations 1
+```
+
+Para sincronizar varias estaciones, aumenta `--max-stations`. Para una carga nacional completa, usa `--all-stations`, pero debe ejecutarse por periodos cortos y con pausa entre peticiones:
+
+```powershell
+python -m irrigation_advisor.cli sync-aemet-cache `
+  --db-file data/aemet_cache.sqlite `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --all-stations `
+  --request-delay 2
+```
+
+Una vez cargada la cache, la recomendacion se puede calcular sin llamar a AEMET:
+
+```powershell
+python -m irrigation_advisor.cli recommend `
+  --cache-db data/aemet_cache.sqlite `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --crop olivar `
+  --stage media `
+  --soil franco `
+  --area-m2 3500 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4
+```
+
+El dataset ML tambien puede construirse desde la cache:
+
+```powershell
+python -m irrigation_advisor.cli build-ml-dataset `
+  --cache-db data/aemet_cache.sqlite `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --soil franco `
+  --output-file data/resultados/dataset_ml_aemet.csv
+```
+
+La interfaz Streamlit incluye el modo `Cache local`, pensado como opcion principal para el servicio predictivo. De este modo, AEMET actua como fuente oficial de actualizacion y la aplicacion trabaja contra una base propia.
+
 ## Resumen de resultados
 
 Para resumir un CSV diario por cultivo:
