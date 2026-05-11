@@ -21,6 +21,7 @@ from irrigation_advisor.models import CROP_DEFAULTS, SOIL_DEFAULTS
 
 DEFAULT_WEATHER_FILE = "data/resultados/comparativa_aemet_sevilla.csv"
 DEFAULT_MODEL_DIR = "models/riego_predictivo"
+ALL_PROVINCES = "Todas las provincias"
 
 
 def main() -> None:
@@ -31,19 +32,25 @@ def main() -> None:
 
     st.title("Recomendacion de riego")
 
-    with st.form("recommendation_form"):
-        source = st.radio(
-            "Datos climaticos",
-            ["CSV local", "AEMET API"],
-            horizontal=True,
-            index=0 if Path(DEFAULT_WEATHER_FILE).exists() else 1,
-        )
+    source = st.radio(
+        "Datos climaticos",
+        ["CSV local", "AEMET API"],
+        horizontal=True,
+        index=0 if Path(DEFAULT_WEATHER_FILE).exists() else 1,
+    )
 
+    with st.form("recommendation_form"):
         location_col, date_col = st.columns(2)
         with location_col:
-            station = st.text_input("Indicativo AEMET", value="")
-            province = st.text_input("Provincia", value="SEVILLA")
-            station_name = st.text_input("Nombre de estacion", value="AEROPUERTO")
+            station = ""
+            province = "SEVILLA"
+            station_name = "AEROPUERTO"
+            if source == "AEMET API":
+                station, province, station_name = render_aemet_station_selector()
+            else:
+                station = st.text_input("Indicativo AEMET", value="")
+                province = st.text_input("Provincia", value="SEVILLA")
+                station_name = st.text_input("Nombre de estacion", value="AEROPUERTO")
             weather_file = st.text_input(
                 "CSV climatico",
                 value=DEFAULT_WEATHER_FILE,
@@ -112,6 +119,92 @@ def main() -> None:
             return
 
         render_recommendation(recommendation)
+
+
+def render_aemet_station_selector() -> tuple[str, str, str]:
+    try:
+        stations = load_aemet_station_inventory()
+    except Exception as exc:  # noqa: BLE001 - Streamlit should keep a manual fallback.
+        st.warning(f"No se pudo cargar el inventario AEMET: {exc}")
+        station = st.text_input("Indicativo AEMET", value="")
+        province = st.text_input("Provincia", value="SEVILLA")
+        station_name = st.text_input("Nombre de estacion", value="AEROPUERTO")
+        return station, province, station_name
+
+    provinces = [ALL_PROVINCES] + sorted({item["provincia"] for item in stations if item["provincia"]})
+    province = st.selectbox(
+        "Provincia",
+        options=provinces,
+        index=province_default_index(provinces, preferred="SEVILLA"),
+    )
+    filtered_stations = filter_station_options(stations=stations, province=province)
+    station_by_label = {station_option_label(item): item for item in filtered_stations}
+    selected_label = st.selectbox(
+        "Estacion AEMET",
+        options=list(station_by_label),
+        index=station_default_index(list(station_by_label), preferred="SEVILLA AEROPUERTO"),
+    )
+    selected_station = station_by_label[selected_label]
+    st.caption(f"Indicativo: {selected_station['indicativo']}")
+    return (
+        selected_station["indicativo"],
+        selected_station["provincia"],
+        selected_station["nombre"],
+    )
+
+
+@st.cache_data(ttl=24 * 60 * 60, show_spinner=False)
+def load_aemet_station_inventory() -> list[dict[str, str | float | None]]:
+    client = AemetClient()
+    return [
+        {
+            "indicativo": station.indicativo,
+            "nombre": station.nombre,
+            "provincia": station.provincia,
+            "latitude_deg": station.latitude_deg,
+            "longitude_deg": station.longitude_deg,
+        }
+        for station in client.get_station_inventory()
+    ]
+
+
+def filter_station_options(
+    stations: list[dict[str, str | float | None]],
+    province: str,
+) -> list[dict[str, str | float | None]]:
+    if province == ALL_PROVINCES:
+        return sorted(stations, key=station_sort_key)
+    return sorted(
+        [station for station in stations if station["provincia"] == province],
+        key=station_sort_key,
+    )
+
+
+def station_option_label(station: dict[str, str | float | None]) -> str:
+    return "{provincia} | {nombre} | {indicativo}".format(
+        provincia=station["provincia"] or "N/D",
+        nombre=station["nombre"] or "N/D",
+        indicativo=station["indicativo"] or "N/D",
+    )
+
+
+def station_sort_key(station: dict[str, str | float | None]) -> tuple[str, str, str]:
+    return (
+        str(station["provincia"] or ""),
+        str(station["nombre"] or ""),
+        str(station["indicativo"] or ""),
+    )
+
+
+def province_default_index(provinces: list[str], preferred: str) -> int:
+    return provinces.index(preferred) if preferred in provinces else 0
+
+
+def station_default_index(labels: list[str], preferred: str) -> int:
+    for index, label in enumerate(labels):
+        if preferred in label:
+            return index
+    return 0
 
 
 def build_args(

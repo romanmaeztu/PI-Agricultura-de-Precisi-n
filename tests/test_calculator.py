@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 import irrigation_advisor.cli as cli_module
+from app import ALL_PROVINCES, filter_station_options, station_default_index, station_option_label
 from irrigation_advisor.aemet_client import Station
 from irrigation_advisor.calculator import (
     build_crop_profile,
@@ -754,6 +755,21 @@ class CalculatorTests(unittest.TestCase):
             self.assertEqual(result["rows"], 4)
             self.assertEqual({row["estacion"] for row in rows}, {"5783", "5402"})
             self.assertEqual({row["suelo"] for row in rows}, {"franco", "arcilloso"})
+
+    def test_station_selector_helpers_filter_and_label_aemet_inventory(self) -> None:
+        stations = [
+            {"indicativo": "5402", "nombre": "CORDOBA AEROPUERTO", "provincia": "CORDOBA"},
+            {"indicativo": "5783", "nombre": "SEVILLA AEROPUERTO", "provincia": "SEVILLA"},
+        ]
+
+        sevilla = filter_station_options(stations=stations, province="SEVILLA")
+        all_stations = filter_station_options(stations=stations, province=ALL_PROVINCES)
+        labels = [station_option_label(station) for station in all_stations]
+
+        self.assertEqual(len(sevilla), 1)
+        self.assertEqual(sevilla[0]["indicativo"], "5783")
+        self.assertIn("SEVILLA | SEVILLA AEROPUERTO | 5783", labels)
+        self.assertEqual(station_default_index(labels, preferred="SEVILLA AEROPUERTO"), 1)
 
 
 if __name__ == "__main__":

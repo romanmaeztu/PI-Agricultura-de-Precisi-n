@@ -156,7 +156,7 @@ Ejecutar la app:
 python -m streamlit run app.py
 ```
 
-La interfaz permite introducir provincia, estacion, cultivo, suelo, superficie y sistema de riego. Puede trabajar con AEMET API o con un CSV climatico ya exportado.
+La interfaz permite elegir cualquier estacion del inventario AEMET de Espana mediante filtro por provincia, ademas de cultivo, suelo, superficie y sistema de riego. Puede trabajar con AEMET API o con un CSV climatico ya exportado.
 
 ## Capa predictiva ML/Keras
 
