@@ -5,12 +5,13 @@ import csv
 import json
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Sequence
 
 from .aemet_client import AemetClient, Station
 from .calculator import build_crop_profile, build_soil_profile, recommend_irrigation
 from .ml import predict_irrigation_with_model, train_irrigation_model
-from .models import CROP_DEFAULTS, IrrigationReport, IrrigationSystem, WeatherDay
+from .models import CROP_DEFAULTS, SOIL_DEFAULTS, IrrigationReport, IrrigationSystem, WeatherDay
 
 
 EXPORT_FIELDNAMES = [
@@ -171,6 +172,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 indent=2,
             )
         )
+        return 0
+
+    if args.command == "build-ml-dataset":
+        result = build_ml_dataset_from_aemet(args)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "summarize-results":
@@ -408,6 +414,45 @@ def build_parser() -> argparse.ArgumentParser:
     export_aemet.add_argument("--output-file", default="data/resultados/comparativa_aemet.csv")
     export_aemet.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
 
+    ml_dataset = subparsers.add_parser(
+        "build-ml-dataset",
+        help="Construye un dataset historico ML cruzando estaciones AEMET, cultivos, fases y suelos.",
+    )
+    ml_dataset.add_argument("--station", action="append", help="Indicativo AEMET. Puede repetirse.")
+    ml_dataset.add_argument("--province", help="Provincia para filtrar estaciones, por ejemplo SEVILLA.")
+    ml_dataset.add_argument("--station-name", help="Texto del nombre de estacion, por ejemplo AEROPUERTO.")
+    ml_dataset.add_argument("--weather-file", help="CSV/JSON AEMET ya exportado para construir el dataset sin llamar a la API.")
+    ml_dataset.add_argument("--max-stations", type=int, default=3)
+    ml_dataset.add_argument("--start", required=True, help="Fecha inicial YYYY-MM-DD.")
+    ml_dataset.add_argument("--end", required=True, help="Fecha final YYYY-MM-DD.")
+    ml_dataset.add_argument("--crop", action="append", choices=sorted(CROP_DEFAULTS), help="Cultivo. Puede repetirse.")
+    ml_dataset.add_argument(
+        "--stage",
+        action="append",
+        choices=["inicio", "desarrollo", "media", "madurez"],
+        help="Fase fenologica. Puede repetirse. Si se omite, usa todas.",
+    )
+    ml_dataset.add_argument(
+        "--soil",
+        action="append",
+        choices=sorted(SOIL_DEFAULTS),
+        help="Tipo de suelo. Puede repetirse. Si se omite, usa franco.",
+    )
+    ml_dataset.add_argument("--area-m2", type=float, default=10000.0, help="Superficie base de simulacion.")
+    ml_dataset.add_argument("--field-capacity", type=float)
+    ml_dataset.add_argument("--wilting-point", type=float)
+    ml_dataset.add_argument("--irrigation-efficiency", type=float, default=0.90)
+    ml_dataset.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
+    ml_dataset.add_argument("--current-soil-moisture", type=float)
+    ml_dataset.add_argument("--emitters-per-plant", type=int, default=2)
+    ml_dataset.add_argument("--emitter-flow-lph", type=float, default=4.0)
+    ml_dataset.add_argument("--output-file", default="data/resultados/dataset_ml_aemet.csv")
+    ml_dataset.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
+    ml_dataset.add_argument("--strict", action="store_true", help="Detiene el proceso si una estacion falla.")
+    ml_dataset.add_argument("--train-model-dir", help="Entrena un modelo al terminar de generar el dataset.")
+    ml_dataset.add_argument("--backend", choices=["auto", "keras", "linear"], default="auto")
+    ml_dataset.add_argument("--epochs", type=int, default=150)
+
     summary = subparsers.add_parser("summarize-results", help="Resume un CSV/JSON de riego por cultivo.")
     summary.add_argument("--input-file", required=True)
     summary.add_argument("--output-file", default="data/resultados/resumen_riego.csv")
@@ -469,6 +514,211 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--emitters-per-plant", type=int)
     parser.add_argument("--emitter-flow-lph", type=float)
     parser.add_argument("--kc", type=float, help="Sobrescribe el Kc por defecto.")
+
+
+def build_ml_dataset_from_aemet(args: argparse.Namespace) -> dict:
+    start = date.fromisoformat(args.start)
+    end = date.fromisoformat(args.end)
+    crop_names = args.crop or list(CROP_DEFAULTS)
+    stages = args.stage or ["inicio", "desarrollo", "media", "madurez"]
+    soils = args.soil or ["franco"]
+    rows: list[dict] = []
+    errors: list[dict] = []
+
+    if args.weather_file:
+        weather_sources = weather_sources_from_export(args)
+        station_count = len(weather_sources)
+    else:
+        client = AemetClient()
+        stations = resolve_dataset_stations(client=client, args=args)
+        station_count = len(stations)
+        weather_sources = []
+        for station in stations:
+            try:
+                weather_sources.append(
+                    (
+                        client.get_daily_climate(
+                            station_id=station.indicativo,
+                            start=start,
+                            end=end,
+                            latitude_deg=station.latitude_deg,
+                        ),
+                        station.indicativo,
+                        station.nombre,
+                        station.provincia,
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001 - report station-level dataset failures.
+                if args.strict:
+                    raise
+                errors.append(
+                    {
+                        "station": station.indicativo,
+                        "station_name": station.nombre,
+                        "province": station.provincia,
+                        "error": str(exc),
+                    }
+                )
+
+    for weather_days, station_id, station_name, province in weather_sources:
+        for soil_name in soils:
+            for stage in stages:
+                scenario_args = SimpleNamespace(
+                    stage=stage,
+                    soil=soil_name,
+                    field_capacity=args.field_capacity,
+                    wilting_point=args.wilting_point,
+                    area_m2=args.area_m2,
+                    irrigation_efficiency=args.irrigation_efficiency,
+                    emitters_per_plant=args.emitters_per_plant,
+                    emitter_flow_lph=args.emitter_flow_lph,
+                    effective_rainfall_ratio=args.effective_rainfall_ratio,
+                    current_soil_moisture=args.current_soil_moisture,
+                )
+                reports = compare_crop_reports(
+                    args=scenario_args,
+                    weather_days=weather_days,
+                    crop_names=crop_names,
+                )
+                rows.extend(
+                    reports_to_daily_export_rows(
+                        reports=reports,
+                        soil_name=soil_name,
+                        station_id=station_id,
+                        station_name=station_name,
+                        province=province,
+                        effective_rainfall_ratio=args.effective_rainfall_ratio,
+                    )
+                )
+
+    if not rows:
+        raise ValueError("No se pudo generar ningun dato para el dataset ML")
+
+    output_format = args.file_format or infer_export_format(args.output_file)
+    write_export(rows=rows, output_file=args.output_file, output_format=output_format)
+    result = {
+        "output_file": str(Path(args.output_file)),
+        "format": output_format,
+        "stations_requested": station_count,
+        "stations_ok": len({row["estacion"] for row in rows}),
+        "rows": len(rows),
+        "crops": crop_names,
+        "stages": stages,
+        "soils": soils,
+        "errors": errors,
+    }
+    if args.train_model_dir:
+        result["training"] = train_irrigation_model(
+            input_file=args.output_file,
+            model_dir=args.train_model_dir,
+            backend=args.backend,
+            epochs=args.epochs,
+            default_area_m2=args.area_m2,
+            default_emitters_per_plant=args.emitters_per_plant,
+            default_emitter_flow_lph=args.emitter_flow_lph,
+            default_efficiency=args.irrigation_efficiency,
+            default_effective_rainfall_ratio=args.effective_rainfall_ratio,
+        )
+    return result
+
+
+def resolve_dataset_stations(client: AemetClient, args: argparse.Namespace) -> list[Station]:
+    if args.station:
+        stations = []
+        for station_id in args.station:
+            station = client.find_station(station_id)
+            if station is None:
+                raise ValueError(f"No se encontro la estacion AEMET: {station_id}")
+            stations.append(station)
+        return unique_stations(stations)
+
+    matches = filter_stations(
+        stations=client.get_station_inventory(),
+        province=args.province,
+        station_name=args.station_name,
+    )
+    if not matches:
+        raise ValueError("No se encontraron estaciones AEMET para generar el dataset")
+    if args.max_stations <= 0:
+        raise ValueError("--max-stations debe ser positivo")
+    return matches[: args.max_stations]
+
+
+def weather_sources_from_export(args: argparse.Namespace) -> list[tuple[list[WeatherDay], str, str | None, str | None]]:
+    rows = read_export_rows(args.weather_file)
+    start = date.fromisoformat(args.start)
+    end = date.fromisoformat(args.end)
+    requested_stations = set(args.station or [])
+    province_filter = normalize_text(args.province)
+    name_filter = normalize_text(args.station_name)
+    grouped: dict[str, dict[str, dict]] = {}
+    metadata: dict[str, dict[str, str | None]] = {}
+
+    for row in rows:
+        station_id = str(row.get("estacion", "")).strip()
+        if not station_id:
+            continue
+        if requested_stations and station_id not in requested_stations:
+            continue
+        province = str(row.get("provincia", "")).strip()
+        station_name = str(row.get("nombre_estacion", "")).strip()
+        if province_filter and province_filter not in normalize_text(province):
+            continue
+        if name_filter and name_filter not in normalize_text(station_name):
+            continue
+        row_date_text = str(row.get("fecha", "")).strip()
+        if not row_date_text:
+            continue
+        row_date = date.fromisoformat(row_date_text)
+        if row_date < start or row_date > end:
+            continue
+        grouped.setdefault(station_id, {}).setdefault(row_date_text, row)
+        metadata.setdefault(
+            station_id,
+            {
+                "station_name": station_name or None,
+                "province": province or None,
+            },
+        )
+
+    if not grouped:
+        raise ValueError("No hay datos climaticos en el archivo para los filtros indicados")
+
+    sources = []
+    for station_id in sorted(grouped)[: args.max_stations]:
+        station_rows = grouped[station_id]
+        weather_days = [
+            WeatherDay(
+                date=date.fromisoformat(row_date_text),
+                et0_mm=to_float(row.get("et0_mm")),
+                rain_mm=to_float(row.get("lluvia_mm")),
+                tmin_c=optional_float(row.get("tmin_c")),
+                tmax_c=optional_float(row.get("tmax_c")),
+                tmean_c=optional_float(row.get("tmedia_c")),
+            )
+            for row_date_text, row in sorted(station_rows.items())
+        ]
+        station_metadata = metadata[station_id]
+        sources.append(
+            (
+                weather_days,
+                station_id,
+                station_metadata["station_name"],
+                station_metadata["province"],
+            )
+        )
+    return sources
+
+
+def unique_stations(stations: list[Station]) -> list[Station]:
+    seen = set()
+    result = []
+    for station in stations:
+        if station.indicativo in seen:
+            continue
+        seen.add(station.indicativo)
+        result.append(station)
+    return result
 
 
 def load_weather_from_args(args: argparse.Namespace) -> tuple[list[WeatherDay], str, str | None, str | None]:
@@ -610,9 +860,13 @@ def report_to_dict(report: IrrigationReport) -> dict:
     }
 
 
-def compare_crop_reports(args: argparse.Namespace, weather_days: list[WeatherDay]) -> list[IrrigationReport]:
+def compare_crop_reports(
+    args: argparse.Namespace,
+    weather_days: list[WeatherDay],
+    crop_names: list[str] | None = None,
+) -> list[IrrigationReport]:
     reports: list[IrrigationReport] = []
-    for crop_name in CROP_DEFAULTS:
+    for crop_name in crop_names or list(CROP_DEFAULTS):
         crop = build_crop_profile(crop=crop_name, stage=args.stage)
         soil = build_soil_profile(
             soil=args.soil,

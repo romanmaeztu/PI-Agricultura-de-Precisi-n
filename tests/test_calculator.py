@@ -8,6 +8,8 @@ import json
 import tempfile
 import unittest
 
+import irrigation_advisor.cli as cli_module
+from irrigation_advisor.aemet_client import Station
 from irrigation_advisor.calculator import (
     build_crop_profile,
     build_soil_profile,
@@ -624,6 +626,134 @@ class CalculatorTests(unittest.TestCase):
             self.assertIn("ml_prediction", result)
             self.assertEqual(result["ml_prediction"]["model"]["model_type"], "linear_ridge")
             self.assertGreater(result["ml_prediction"]["summary"]["avg_liters_day"], 0)
+
+    def test_cli_build_ml_dataset_crosses_stations_crops_and_soils(self) -> None:
+        class FakeAemetClient:
+            stations = [
+                Station("5783", "SEVILLA AEROPUERTO", "SEVILLA", 37.42, -5.90),
+                Station("5402", "CORDOBA AEROPUERTO", "CORDOBA", 37.84, -4.84),
+            ]
+
+            def get_station_inventory(self) -> list[Station]:
+                return self.stations
+
+            def find_station(self, station_id: str) -> Station | None:
+                return next((station for station in self.stations if station.indicativo == station_id), None)
+
+            def get_daily_climate(
+                self,
+                station_id: str,
+                start: date,
+                end: date,
+                latitude_deg: float | None = None,
+            ) -> list[WeatherDay]:
+                return [
+                    WeatherDay(date=date(2024, 5, 1), et0_mm=5.0, rain_mm=0.0, tmin_c=15.0, tmax_c=30.0, tmean_c=22.5),
+                    WeatherDay(date=date(2024, 5, 2), et0_mm=6.0, rain_mm=1.0, tmin_c=16.0, tmax_c=31.0, tmean_c=23.5),
+                ]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_file = Path(tmp_dir) / "dataset_ml.csv"
+            model_dir = Path(tmp_dir) / "model"
+            original_client = cli_module.AemetClient
+            cli_module.AemetClient = FakeAemetClient
+            try:
+                output = StringIO()
+                with redirect_stdout(output):
+                    exit_code = main(
+                        [
+                            "build-ml-dataset",
+                            "--station",
+                            "5783",
+                            "--station",
+                            "5402",
+                            "--start",
+                            "2024-05-01",
+                            "--end",
+                            "2024-05-02",
+                            "--crop",
+                            "olivar",
+                            "--crop",
+                            "almendro",
+                            "--stage",
+                            "media",
+                            "--soil",
+                            "franco",
+                            "--soil",
+                            "arcilloso",
+                            "--area-m2",
+                            "3500",
+                            "--output-file",
+                            str(output_file),
+                            "--train-model-dir",
+                            str(model_dir),
+                            "--backend",
+                            "linear",
+                        ]
+                    )
+            finally:
+                cli_module.AemetClient = original_client
+
+            result = json.loads(output.getvalue())
+            with output_file.open("r", encoding="utf-8", newline="") as file:
+                rows = list(csv.DictReader(file))
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(result["rows"], 16)
+            self.assertEqual(len(rows), 16)
+            self.assertEqual({row["estacion"] for row in rows}, {"5783", "5402"})
+            self.assertEqual({row["cultivo"] for row in rows}, {"olivar", "almendro"})
+            self.assertEqual({row["suelo"] for row in rows}, {"franco", "arcilloso"})
+            self.assertTrue((model_dir / "model.json").exists())
+
+    def test_cli_build_ml_dataset_can_use_cached_weather_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            weather_file = Path(tmp_dir) / "cached_weather.csv"
+            output_file = Path(tmp_dir) / "dataset_ml.csv"
+            weather_file.write_text(
+                "\n".join(
+                    [
+                        "fecha,estacion,nombre_estacion,provincia,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c",
+                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,5.0,0.0,15.0,30.0,22.5",
+                        "2024-05-01,5402,CORDOBA AEROPUERTO,CORDOBA,6.0,1.0,16.0,31.0,23.5",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "build-ml-dataset",
+                        "--weather-file",
+                        str(weather_file),
+                        "--start",
+                        "2024-05-01",
+                        "--end",
+                        "2024-05-01",
+                        "--crop",
+                        "olivar",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--soil",
+                        "arcilloso",
+                        "--output-file",
+                        str(output_file),
+                    ]
+                )
+
+            result = json.loads(output.getvalue())
+            with output_file.open("r", encoding="utf-8", newline="") as file:
+                rows = list(csv.DictReader(file))
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(result["rows"], 4)
+            self.assertEqual({row["estacion"] for row in rows}, {"5783", "5402"})
+            self.assertEqual({row["suelo"] for row in rows}, {"franco", "arcilloso"})
 
 
 if __name__ == "__main__":

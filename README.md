@@ -173,6 +173,58 @@ python -m irrigation_advisor.cli train-ml `
   --backend auto
 ```
 
+Para construir un dataset historico mayor desde AEMET:
+
+```powershell
+python -m irrigation_advisor.cli build-ml-dataset `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
+  --start 2024-03-01 `
+  --end 2024-09-30 `
+  --crop olivar `
+  --crop citricos `
+  --crop almendro `
+  --stage inicio `
+  --stage desarrollo `
+  --stage media `
+  --stage madurez `
+  --soil franco `
+  --soil franco_arcilloso `
+  --area-m2 10000 `
+  --emitters-per-plant 2 `
+  --emitter-flow-lph 4 `
+  --output-file data/resultados/dataset_ml_aemet.csv
+```
+
+Si AEMET limita temporalmente las peticiones o ya existe un CSV descargado, puede construirse el dataset ML desde cache:
+
+```powershell
+python -m irrigation_advisor.cli build-ml-dataset `
+  --weather-file data/resultados/comparativa_aemet_sevilla.csv `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
+  --start 2024-05-01 `
+  --end 2024-05-07 `
+  --soil franco `
+  --soil franco_arcilloso `
+  --output-file data/resultados/dataset_ml_aemet.csv
+```
+
+Tambien puede generar el dataset y entrenar el modelo en el mismo paso:
+
+```powershell
+python -m irrigation_advisor.cli build-ml-dataset `
+  --province SEVILLA `
+  --station-name AEROPUERTO `
+  --start 2024-03-01 `
+  --end 2024-09-30 `
+  --soil franco `
+  --soil franco_arcilloso `
+  --output-file data/resultados/dataset_ml_aemet.csv `
+  --train-model-dir models/riego_predictivo `
+  --backend auto
+```
+
 `--backend auto` intenta entrenar con Keras si TensorFlow esta disponible. Si no lo esta, entrena un modelo `linear_ridge` ligero para mantener el flujo funcionando. Para forzar Keras:
 
 ```powershell
