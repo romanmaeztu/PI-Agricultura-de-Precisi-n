@@ -83,20 +83,12 @@ class IrrigationSystem:
     area_m2: float
     efficiency: float = 0.90
     plant_spacing_m2: Optional[float] = None
-    emitters_per_plant: Optional[int] = None
-    emitter_flow_lph: Optional[float] = None
 
     @property
     def plants(self) -> Optional[float]:
         if not self.plant_spacing_m2 or self.plant_spacing_m2 <= 0:
             return None
         return self.area_m2 / self.plant_spacing_m2
-
-    @property
-    def flow_per_plant_lph(self) -> Optional[float]:
-        if not self.emitters_per_plant or not self.emitter_flow_lph:
-            return None
-        return self.emitters_per_plant * self.emitter_flow_lph
 
 
 @dataclass(frozen=True)
@@ -124,7 +116,6 @@ class DayRecommendation:
     gross_irrigation_mm: float
     liters_total: float
     liters_per_plant: Optional[float]
-    runtime_hours: Optional[float]
 
 
 @dataclass(frozen=True)

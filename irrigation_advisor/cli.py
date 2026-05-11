@@ -27,8 +27,6 @@ EXPORT_FIELDNAMES = [
     "superficie_m2",
     "eficiencia_riego",
     "lluvia_efectiva_ratio",
-    "goteros_por_planta",
-    "caudal_gotero_lph",
     "et0_mm",
     "lluvia_mm",
     "tmin_c",
@@ -42,7 +40,6 @@ EXPORT_FIELDNAMES = [
     "riego_bruto_mm",
     "litros_totales",
     "litros_por_planta",
-    "horas_riego",
     "ranking_demanda",
 ]
 
@@ -68,7 +65,6 @@ SUMMARY_FIELDNAMES = [
     "riego_medio_mm_dia",
     "etc_media_mm_dia",
     "litros_por_planta_medio",
-    "horas_riego_medias",
     "diferencia_litros_vs_minimo",
     "porcentaje_incremento_vs_minimo",
     "ranking_demanda",
@@ -208,8 +204,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             epochs=args.epochs,
             validation_ratio=args.validation_ratio,
             default_area_m2=args.default_area_m2,
-            default_emitters_per_plant=args.default_emitters_per_plant,
-            default_emitter_flow_lph=args.default_emitter_flow_lph,
             default_efficiency=args.default_efficiency,
             default_effective_rainfall_ratio=args.default_effective_rainfall_ratio,
         )
@@ -292,8 +286,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         area_m2=args.area_m2,
         efficiency=args.irrigation_efficiency,
         plant_spacing_m2=plant_spacing_m2,
-        emitters_per_plant=args.emitters_per_plant,
-        emitter_flow_lph=args.emitter_flow_lph,
     )
 
     if args.command == "manual":
@@ -337,7 +329,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="irrigation-advisor",
-        description="Recomendacion de riego a partir de AEMET, suelo, cultivo y sistema de riego.",
+        description="Recomendacion de riego a partir de AEMET, suelo, cultivo y parcela.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -392,8 +384,6 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--irrigation-efficiency", type=float, default=0.90)
     compare.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
     compare.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
-    compare.add_argument("--emitters-per-plant", type=int)
-    compare.add_argument("--emitter-flow-lph", type=float)
     compare.add_argument("--output", choices=["json", "markdown"], default="json")
 
     export = subparsers.add_parser("export-comparison", help="Exporta la comparativa de cultivos a CSV o JSON.")
@@ -408,8 +398,6 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--irrigation-efficiency", type=float, default=0.90)
     export.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
     export.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
-    export.add_argument("--emitters-per-plant", type=int)
-    export.add_argument("--emitter-flow-lph", type=float)
     export.add_argument("--output-file", default="data/resultados/comparativa_riego.csv")
     export.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
 
@@ -432,8 +420,6 @@ def build_parser() -> argparse.ArgumentParser:
     export_aemet.add_argument("--irrigation-efficiency", type=float, default=0.90)
     export_aemet.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
     export_aemet.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
-    export_aemet.add_argument("--emitters-per-plant", type=int)
-    export_aemet.add_argument("--emitter-flow-lph", type=float)
     export_aemet.add_argument("--output-file", default="data/resultados/comparativa_aemet.csv")
     export_aemet.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
 
@@ -468,8 +454,6 @@ def build_parser() -> argparse.ArgumentParser:
     ml_dataset.add_argument("--irrigation-efficiency", type=float, default=0.90)
     ml_dataset.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
     ml_dataset.add_argument("--current-soil-moisture", type=float)
-    ml_dataset.add_argument("--emitters-per-plant", type=int, default=2)
-    ml_dataset.add_argument("--emitter-flow-lph", type=float, default=4.0)
     ml_dataset.add_argument("--output-file", default="data/resultados/dataset_ml_aemet.csv")
     ml_dataset.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
     ml_dataset.add_argument("--strict", action="store_true", help="Detiene el proceso si una estacion falla.")
@@ -489,8 +473,6 @@ def build_parser() -> argparse.ArgumentParser:
     train_ml.add_argument("--epochs", type=int, default=150)
     train_ml.add_argument("--validation-ratio", type=float, default=0.20)
     train_ml.add_argument("--default-area-m2", type=float, default=10000.0)
-    train_ml.add_argument("--default-emitters-per-plant", type=int, default=2)
-    train_ml.add_argument("--default-emitter-flow-lph", type=float, default=4.0)
     train_ml.add_argument("--default-efficiency", type=float, default=0.90)
     train_ml.add_argument("--default-effective-rainfall-ratio", type=float, default=0.80)
 
@@ -537,8 +519,6 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
     parser.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
     parser.add_argument("--plant-spacing-m2", type=float, help="Sobrescribe la superficie asignada por planta.")
-    parser.add_argument("--emitters-per-plant", type=int)
-    parser.add_argument("--emitter-flow-lph", type=float)
     parser.add_argument("--kc", type=float, help="Sobrescribe el Kc por defecto.")
 
 
@@ -599,8 +579,6 @@ def build_ml_dataset_from_aemet(args: argparse.Namespace) -> dict:
                     wilting_point=args.wilting_point,
                     area_m2=args.area_m2,
                     irrigation_efficiency=args.irrigation_efficiency,
-                    emitters_per_plant=args.emitters_per_plant,
-                    emitter_flow_lph=args.emitter_flow_lph,
                     effective_rainfall_ratio=args.effective_rainfall_ratio,
                     current_soil_moisture=args.current_soil_moisture,
                 )
@@ -643,8 +621,6 @@ def build_ml_dataset_from_aemet(args: argparse.Namespace) -> dict:
             backend=args.backend,
             epochs=args.epochs,
             default_area_m2=args.area_m2,
-            default_emitters_per_plant=args.emitters_per_plant,
-            default_emitter_flow_lph=args.emitter_flow_lph,
             default_efficiency=args.irrigation_efficiency,
             default_effective_rainfall_ratio=args.effective_rainfall_ratio,
         )
@@ -996,7 +972,6 @@ def report_to_dict(report: IrrigationReport) -> dict:
             "efficiency": report.system.efficiency,
             "plant_spacing_m2": report.system.plant_spacing_m2,
             "plants": round(report.system.plants, 2) if report.system.plants else None,
-            "flow_per_plant_lph": report.system.flow_per_plant_lph,
         },
         "first_irrigation_mm": round(report.first_irrigation_mm, 2)
         if report.first_irrigation_mm is not None
@@ -1019,9 +994,6 @@ def report_to_dict(report: IrrigationReport) -> dict:
                 "liters_total": round(item.liters_total, 2),
                 "liters_per_plant": round(item.liters_per_plant, 2)
                 if item.liters_per_plant is not None
-                else None,
-                "runtime_hours": round(item.runtime_hours, 2)
-                if item.runtime_hours is not None
                 else None,
             }
             for item in report.days
@@ -1048,8 +1020,6 @@ def compare_crop_reports(
             area_m2=args.area_m2,
             efficiency=args.irrigation_efficiency,
             plant_spacing_m2=crop.plant_spacing_m2,
-            emitters_per_plant=args.emitters_per_plant,
-            emitter_flow_lph=args.emitter_flow_lph,
         )
         reports.append(
             recommend_irrigation(
@@ -1088,8 +1058,6 @@ def build_single_crop_report(args: argparse.Namespace, weather_days: list[Weathe
         area_m2=args.area_m2,
         efficiency=args.irrigation_efficiency,
         plant_spacing_m2=plant_spacing_m2,
-        emitters_per_plant=args.emitters_per_plant,
-        emitter_flow_lph=args.emitter_flow_lph,
     )
     return recommend_irrigation(
         weather_days=weather_days,
@@ -1173,7 +1141,6 @@ def recommendation_to_dict(
     daily_liters_per_plant = [
         day.liters_per_plant for day in report.days if day.liters_per_plant is not None
     ]
-    daily_runtime = [day.runtime_hours for day in report.days if day.runtime_hours is not None]
     total_liters = sum(daily_liters)
     return {
         "service": "recomendacion_riego",
@@ -1210,9 +1177,6 @@ def recommendation_to_dict(
             "avg_liters_plant_day": round(sum(daily_liters_per_plant) / len(daily_liters_per_plant), 2)
             if daily_liters_per_plant
             else None,
-            "avg_runtime_hours_day": round(sum(daily_runtime) / len(daily_runtime), 2)
-            if daily_runtime
-            else None,
             "first_irrigation_mm": round(report.first_irrigation_mm, 2)
             if report.first_irrigation_mm is not None
             else None,
@@ -1227,9 +1191,6 @@ def recommendation_to_dict(
                 "liters_total": round(day.liters_total, 2),
                 "liters_per_plant": round(day.liters_per_plant, 2)
                 if day.liters_per_plant is not None
-                else None,
-                "runtime_hours": round(day.runtime_hours, 2)
-                if day.runtime_hours is not None
                 else None,
             }
             for day in report.days
@@ -1279,8 +1240,6 @@ def recommendation_to_markdown(recommendation: dict) -> str:
     )
     if result["avg_liters_plant_day"] is not None:
         lines.append(f"- Litros medios por planta: {result['avg_liters_plant_day']:.2f} L/planta/dia")
-    if result["avg_runtime_hours_day"] is not None:
-        lines.append(f"- Tiempo medio de riego: {result['avg_runtime_hours_day']:.2f} h/dia")
 
     ml_prediction = recommendation.get("ml_prediction")
     if ml_prediction:
@@ -1299,8 +1258,6 @@ def recommendation_to_markdown(recommendation: dict) -> str:
         )
         if ml_summary["avg_liters_plant_day"] is not None:
             lines.append(f"- Litros medios por planta ML: {ml_summary['avg_liters_plant_day']:.2f} L/planta/dia")
-        if ml_summary["avg_runtime_hours_day"] is not None:
-            lines.append(f"- Tiempo medio ML: {ml_summary['avg_runtime_hours_day']:.2f} h/dia")
         metrics = ml_model.get("metrics") or {}
         if metrics:
             lines.append(
@@ -1316,20 +1273,20 @@ def recommendation_to_markdown(recommendation: dict) -> str:
             "",
             "## Detalle diario",
             "",
-            "| Fecha | ET0 (mm) | Lluvia (mm) | ETc (mm) | Riego bruto (mm) | Litros | Horas |",
+            "| Fecha | ET0 (mm) | Lluvia (mm) | ETc (mm) | Riego bruto (mm) | Litros | L/planta |",
             "|---|---:|---:|---:|---:|---:|---:|",
         ]
     )
     for day in recommendation["daily"]:
         lines.append(
-            "| {date} | {et0:.2f} | {rain:.2f} | {etc:.2f} | {gross:.2f} | {liters:.2f} | {hours} |".format(
+            "| {date} | {et0:.2f} | {rain:.2f} | {etc:.2f} | {gross:.2f} | {liters:.2f} | {plant} |".format(
                 date=day["date"],
                 et0=day["et0_mm"],
                 rain=day["rain_mm"],
                 etc=day["etc_mm"],
                 gross=day["gross_irrigation_mm"],
                 liters=day["liters_total"],
-                hours=format_optional_number(day["runtime_hours"]),
+                plant=format_optional_number(day["liters_per_plant"]),
             )
         )
 
@@ -1339,18 +1296,17 @@ def recommendation_to_markdown(recommendation: dict) -> str:
                 "",
                 "## Detalle diario ML",
                 "",
-                "| Fecha | Riego ML (mm) | Litros ML | L/planta ML | Horas ML |",
-                "|---|---:|---:|---:|---:|",
+                "| Fecha | Riego ML (mm) | Litros ML | L/planta ML |",
+                "|---|---:|---:|---:|",
             ]
         )
         for day in ml_prediction["daily"]:
             lines.append(
-                "| {date} | {gross:.2f} | {liters:.2f} | {plant} | {hours} |".format(
+                "| {date} | {gross:.2f} | {liters:.2f} | {plant} |".format(
                     date=day["date"],
                     gross=day["predicted_gross_irrigation_mm"],
                     liters=day["predicted_liters_total"],
                     plant=format_optional_number(day["predicted_liters_per_plant"]),
-                    hours=format_optional_number(day["predicted_runtime_hours"]),
                 )
             )
 
@@ -1421,8 +1377,6 @@ def build_comparison_from_args(args: argparse.Namespace) -> dict:
         area_m2=args.area_m2,
         irrigation_efficiency=args.irrigation_efficiency,
         effective_rainfall_ratio=args.effective_rainfall_ratio,
-        emitters_per_plant=args.emitters_per_plant,
-        emitter_flow_lph=args.emitter_flow_lph,
     )
 
 
@@ -1436,8 +1390,6 @@ def comparison_to_dict(
     area_m2: float,
     irrigation_efficiency: float,
     effective_rainfall_ratio: float,
-    emitters_per_plant: int | None,
-    emitter_flow_lph: float | None,
 ) -> dict:
     rows = [comparison_row(report) for report in reports]
     sorted_rows = sorted(rows, key=lambda row: row["total_liters"])
@@ -1453,8 +1405,6 @@ def comparison_to_dict(
             "area_m2": area_m2,
             "irrigation_efficiency": irrigation_efficiency,
             "effective_rainfall_ratio": effective_rainfall_ratio,
-            "emitters_per_plant": emitters_per_plant,
-            "emitter_flow_lph": emitter_flow_lph,
         },
         "ranking": {
             "lowest_irrigation_crop": lowest["crop"],
@@ -1485,22 +1435,19 @@ def comparison_row(report: IrrigationReport) -> dict:
         "liters_per_plant": round(first_day.liters_per_plant, 2)
         if first_day.liters_per_plant is not None
         else None,
-        "runtime_hours": round(first_day.runtime_hours, 2)
-        if first_day.runtime_hours is not None
-        else None,
     }
 
 
 def comparison_to_markdown(comparison: dict) -> str:
     lines = [
-        "| Cultivo | Kc | Raices (m) | Marco (m2/planta) | ETc (mm) | Riego bruto (mm) | Litros totales | L/planta | Horas |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Cultivo | Kc | Raices (m) | Marco (m2/planta) | ETc (mm) | Riego bruto (mm) | Litros totales | L/planta |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in comparison["crops"]:
         lines.append(
             "| {crop} | {kc:.3f} | {root_depth_m:.2f} | {plant_spacing_m2:.2f} | "
             "{etc_mm:.2f} | {gross_irrigation_mm:.2f} | {total_liters:.2f} | "
-            "{liters_per_plant} | {runtime_hours} |".format(
+            "{liters_per_plant} |".format(
                 crop=row["crop"],
                 kc=row["kc"],
                 root_depth_m=row["root_depth_m"],
@@ -1509,7 +1456,6 @@ def comparison_to_markdown(comparison: dict) -> str:
                 gross_irrigation_mm=row["gross_irrigation_mm"],
                 total_liters=row["total_liters"],
                 liters_per_plant=format_optional_number(row["liters_per_plant"]),
-                runtime_hours=format_optional_number(row["runtime_hours"]),
             )
         )
     ranking = comparison["ranking"]
@@ -1553,8 +1499,6 @@ def comparison_to_export_rows(comparison: dict) -> list[dict]:
                 "superficie_m2": scenario["area_m2"],
                 "eficiencia_riego": scenario["irrigation_efficiency"],
                 "lluvia_efectiva_ratio": scenario["effective_rainfall_ratio"],
-                "goteros_por_planta": scenario["emitters_per_plant"],
-                "caudal_gotero_lph": scenario["emitter_flow_lph"],
                 "et0_mm": scenario["et0_mm"],
                 "lluvia_mm": scenario["rain_mm"],
                 "tmin_c": None,
@@ -1568,7 +1512,6 @@ def comparison_to_export_rows(comparison: dict) -> list[dict]:
                 "riego_bruto_mm": row["gross_irrigation_mm"],
                 "litros_totales": row["total_liters"],
                 "litros_por_planta": row["liters_per_plant"],
-                "horas_riego": row["runtime_hours"],
                 "ranking_demanda": ranking[row["crop"]],
             }
         )
@@ -1603,8 +1546,6 @@ def reports_to_daily_export_rows(
                     "superficie_m2": report.system.area_m2,
                     "eficiencia_riego": report.system.efficiency,
                     "lluvia_efectiva_ratio": effective_rainfall_ratio,
-                    "goteros_por_planta": report.system.emitters_per_plant,
-                    "caudal_gotero_lph": report.system.emitter_flow_lph,
                     "et0_mm": round(day.et0_mm, 2),
                     "lluvia_mm": round(day.rain_mm, 2),
                     "tmin_c": round(day.tmin_c, 2) if day.tmin_c is not None else None,
@@ -1619,9 +1560,6 @@ def reports_to_daily_export_rows(
                     "litros_totales": round(day.liters_total, 2),
                     "litros_por_planta": round(day.liters_per_plant, 2)
                     if day.liters_per_plant is not None
-                    else None,
-                    "horas_riego": round(day.runtime_hours, 2)
-                    if day.runtime_hours is not None
                     else None,
                 }
             )
@@ -1713,7 +1651,6 @@ def summarize_export_rows(rows: list[dict]) -> list[dict]:
                 "riego_medio_mm_dia": round(average(crop_rows, "riego_bruto_mm"), 2),
                 "etc_media_mm_dia": round(average(crop_rows, "etc_mm"), 2),
                 "litros_por_planta_medio": round(average(crop_rows, "litros_por_planta"), 2),
-                "horas_riego_medias": round(average(crop_rows, "horas_riego"), 2),
             }
         )
 

@@ -156,12 +156,9 @@ def recommend_irrigation(
         gross_mm = net_mm / system.efficiency
         liters_total = gross_mm * system.area_m2
         liters_per_plant = None
-        runtime_hours = None
 
         if system.plant_spacing_m2:
             liters_per_plant = gross_mm * system.plant_spacing_m2
-            if system.flow_per_plant_lph:
-                runtime_hours = liters_per_plant / system.flow_per_plant_lph
 
         recommendations.append(
             DayRecommendation(
@@ -178,7 +175,6 @@ def recommend_irrigation(
                 gross_irrigation_mm=gross_mm,
                 liters_total=liters_total,
                 liters_per_plant=liters_per_plant,
-                runtime_hours=runtime_hours,
             )
         )
 

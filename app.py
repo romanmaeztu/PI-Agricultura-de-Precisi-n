@@ -93,8 +93,6 @@ def main() -> None:
         with irrigation_col:
             irrigation_efficiency = st.slider("Eficiencia de riego", min_value=0.50, max_value=1.00, value=0.90, step=0.01)
             effective_rainfall_ratio = st.slider("Lluvia efectiva", min_value=0.00, max_value=1.00, value=0.80, step=0.05)
-            emitters_per_plant = st.number_input("Goteros por planta", min_value=1, value=2, step=1)
-            emitter_flow_lph = st.number_input("Caudal por gotero (L/h)", min_value=0.1, value=4.0, step=0.5)
             use_ml_prediction = st.checkbox("Usar modelo ML entrenado")
             ml_model_dir = st.text_input(
                 "Directorio del modelo ML",
@@ -118,8 +116,6 @@ def main() -> None:
             irrigation_efficiency=irrigation_efficiency,
             effective_rainfall_ratio=effective_rainfall_ratio,
             current_soil_moisture=current_soil_moisture if use_current_moisture else None,
-            emitters_per_plant=emitters_per_plant,
-            emitter_flow_lph=emitter_flow_lph,
         )
         try:
             recommendation = calculate_recommendation(
@@ -256,8 +252,6 @@ def build_args(
     irrigation_efficiency: float,
     effective_rainfall_ratio: float,
     current_soil_moisture: float | None,
-    emitters_per_plant: int,
-    emitter_flow_lph: float,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         station=station.strip() or None,
@@ -279,8 +273,6 @@ def build_args(
         effective_rainfall_ratio=effective_rainfall_ratio,
         current_soil_moisture=current_soil_moisture,
         plant_spacing_m2=None,
-        emitters_per_plant=emitters_per_plant,
-        emitter_flow_lph=emitter_flow_lph,
     )
 
 
@@ -355,8 +347,8 @@ def render_recommendation(recommendation: dict) -> None:
     climate = recommendation["climate"]
 
     metric_cols = st.columns(4)
-    metric_cols[0].metric("Riego medio diario", f"{result['avg_liters_day']:,.0f} L/dia")
-    metric_cols[1].metric("Tiempo medio", format_hours(result["avg_runtime_hours_day"]))
+    metric_cols[0].metric("Riego total", f"{result['total_liters']:,.0f} L")
+    metric_cols[1].metric("Riego medio diario", f"{result['avg_liters_day']:,.0f} L/dia")
     metric_cols[2].metric("Litros por planta", format_liters(result["avg_liters_plant_day"]))
     metric_cols[3].metric("Lamina diaria", f"{result['avg_gross_mm_day']:.2f} mm")
 
@@ -391,8 +383,8 @@ def render_ml_prediction(ml_prediction: dict) -> None:
     summary = ml_prediction["summary"]
     model = ml_prediction["model"]
     cols = st.columns(4)
-    cols[0].metric("Riego medio ML", f"{summary['avg_liters_day']:,.0f} L/dia")
-    cols[1].metric("Tiempo medio ML", format_hours(summary["avg_runtime_hours_day"]))
+    cols[0].metric("Riego total ML", f"{summary['total_liters']:,.0f} L")
+    cols[1].metric("Riego medio ML", f"{summary['avg_liters_day']:,.0f} L/dia")
     cols[2].metric("Litros/planta ML", format_liters(summary["avg_liters_plant_day"]))
     cols[3].metric("Lamina ML", f"{summary['avg_gross_mm_day']:.2f} mm")
 
@@ -407,12 +399,6 @@ def render_ml_prediction(ml_prediction: dict) -> None:
             )
         )
     st.dataframe(ml_prediction["daily"], use_container_width=True, hide_index=True)
-
-
-def format_hours(value: float | None) -> str:
-    if value is None:
-        return "N/D"
-    return f"{value:.2f} h/dia"
 
 
 def format_liters(value: float | None) -> str:

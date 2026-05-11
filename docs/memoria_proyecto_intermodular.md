@@ -34,10 +34,8 @@ La solución se ha planteado como un servicio predictivo configurable. El usuari
 - Cultivo.
 - Tipo de suelo.
 - Superficie de la parcela.
-- Sistema de riego.
-- Número de goteros y caudal.
 
-Con esa información, el sistema calcula litros totales, litros por planta, lámina de riego en milímetros y tiempo estimado de riego. Además, permite comparar varios cultivos para observar cómo cambia la demanda hídrica en función de sus parámetros agronómicos.
+Con esa información, el sistema calcula litros totales, litros por planta y lámina de riego en milímetros. Además, permite comparar varios cultivos para observar cómo cambia la demanda hídrica en función de sus parámetros agronómicos.
 
 ### 1.2 Contexto y justificación
 
@@ -72,7 +70,7 @@ Los objetivos específicos se plantean como una escalera: cada escalón permite 
 |---:|---|---|
 | 1 | Diseñar una estructura de captación de datos climáticos y agronómicos. | Definición de variables meteorológicas, edáficas, fisiológicas y de parcela. |
 | 2 | Conectar el sistema con datos oficiales de AEMET. | Consulta de estaciones, descarga de datos diarios y transformación a formato utilizable. |
-| 3 | Implementar el cálculo agronómico de riego. | Cálculo de ETc, lluvia efectiva, riego neto, riego bruto, litros y horas. |
+| 3 | Implementar el cálculo agronómico de riego. | Cálculo de ETc, lluvia efectiva, riego neto, riego bruto y litros. |
 | 4 | Incorporar varios cultivos configurables. | Comparación entre olivar, cítricos y almendro. |
 | 5 | Crear una capa predictiva con Machine Learning. | Entrenamiento de un modelo Keras/TensorFlow para predecir riego bruto. |
 | 6 | Desarrollar una interfaz de usuario. | Aplicación Streamlit con selección de estación, cultivo, suelo y parcela. |
@@ -219,7 +217,7 @@ El desarrollo se ha organizado en los siguientes bloques:
 
 | Bloque | Trabajo realizado | Relación con objetivos |
 |---|---|---|
-| 1 | Modelado de cultivos, suelos y sistema de riego. | Base agronómica del proyecto. |
+| 1 | Modelado de cultivos, suelos y parcela. | Base agronómica del proyecto. |
 | 2 | Cálculo de riego trazable. | Conversión de clima y parcela en recomendación. |
 | 3 | Conexión con AEMET. | Uso de datos oficiales por estación y fechas. |
 | 4 | Exportación y resumen de resultados. | Generación de datos defendibles. |
@@ -281,7 +279,6 @@ riego_neto = max(0, ETc - lluvia_efectiva)
 riego_bruto = riego_neto / eficiencia_riego
 litros_totales = riego_bruto * superficie_m2
 litros_por_planta = riego_bruto * marco_m2_por_planta
-horas_riego = litros_por_planta / caudal_por_planta
 ```
 
 La lluvia efectiva se fija por defecto en el 80 %. La eficiencia de riego se configura por defecto en 0,90 para sistemas de riego localizado.
@@ -296,13 +293,12 @@ El entrenamiento se realiza a partir de un dataset que cruza:
 - Fase fenológica.
 - Tipo de suelo.
 - Superficie.
-- Sistema de riego.
 - Variables climáticas.
 - Variables agronómicas.
 
 El modelo utiliza como entrada variables numéricas y categóricas. Las variables categóricas se codifican internamente y las numéricas se normalizan. La salida es la lámina de riego bruto en milímetros.
 
-Los goteros y el caudal se mantienen fuera de las variables predictoras de la lámina de riego. Su función es operativa: una vez estimados los milímetros y litros necesarios, sirven para calcular el tiempo de riego. De esta forma, cambiar el número de goteros no altera la necesidad hídrica del cultivo, sino únicamente la duración del riego.
+La recomendación se centra en la necesidad hídrica de la plantación: milímetros de riego, litros totales y litros por planta. La forma hidráulica concreta de reparto queda fuera del alcance principal del prototipo.
 
 ### 3.8 Cronograma
 
@@ -390,7 +386,6 @@ Para una parcela de 3.500 m2 de olivar en fase media, suelo franco, estación Se
 | Riego medio diario | 13.879,44 L/día |
 | Lámina media diaria | 3,97 mm/día |
 | Litros medios por planta | 31,72 L/planta/día |
-| Tiempo medio de riego | 3,97 h/día |
 
 Este resultado convierte los cálculos técnicos en una recomendación entendible para el cliente.
 
@@ -417,7 +412,6 @@ En el caso de olivar para una parcela de 3.500 m2, la predicción ML fue muy cer
 | Riego medio diario | 13.879,44 L/día | 13.880,77 L/día |
 | Lámina media diaria | 3,97 mm/día | 3,97 mm/día |
 | Litros medios por planta | 31,72 L/planta/día | 31,73 L/planta/día |
-| Tiempo medio de riego | 3,97 h/día | 3,97 h/día |
 
 La diferencia es mínima porque el modelo se ha entrenado con etiquetas derivadas del motor agronómico. Este comportamiento es útil para validar la integración técnica de ML, pero el salto a un servicio real requiere incorporar datos reales de campo.
 
@@ -480,8 +474,8 @@ Durante el desarrollo se han trabajado varios aprendizajes:
 
 - Consumo de APIs reales con autenticación.
 - Limpieza y normalización de datos meteorológicos.
-- Modelado de cultivos, suelos y sistemas de riego.
-- Conversión de milímetros de riego a litros y horas.
+- Modelado de cultivos, suelos y parcelas.
+- Conversión de milímetros de riego a litros totales y litros por planta.
 - Creación de una interfaz web con Streamlit.
 - Entrenamiento de una red neuronal con TensorFlow/Keras.
 - Uso de GitHub para versionar el proyecto.
@@ -580,8 +574,6 @@ python -m irrigation_advisor.cli predict-ml `
   --stage media `
   --soil franco `
   --area-m2 3500 `
-  --emitters-per-plant 2 `
-  --emitter-flow-lph 4 `
   --output markdown
 ```
 
@@ -605,7 +597,6 @@ python -m irrigation_advisor.cli predict-ml `
 | `marco_m2_por_planta` | Superficie asignada a cada planta. |
 | `riego_bruto_mm` | Variable objetivo del modelo. |
 | `litros_totales` | Conversión de lámina a litros. |
-| `horas_riego` | Tiempo estimado de riego. |
 
 ### Anexo C. Límites técnicos actuales
 

@@ -15,7 +15,6 @@ from .models import IrrigationSystem, WeatherDay
 
 
 TARGET_FIELD = "riego_bruto_mm"
-OPERATIONAL_OUTPUT_FIELDS = {"goteros_por_planta", "caudal_gotero_lph", "caudal_planta_lph"}
 
 NUMERIC_FIELDS = [
     "day_sin",
@@ -114,8 +113,6 @@ def train_irrigation_model(
     epochs: int = 150,
     validation_ratio: float = 0.20,
     default_area_m2: float = 10000.0,
-    default_emitters_per_plant: int = 2,
-    default_emitter_flow_lph: float = 4.0,
     default_efficiency: float = 0.90,
     default_effective_rainfall_ratio: float = 0.80,
     seed: int = 42,
@@ -124,8 +121,6 @@ def train_irrigation_model(
     examples = training_examples_from_rows(
         rows=rows,
         default_area_m2=default_area_m2,
-        default_emitters_per_plant=default_emitters_per_plant,
-        default_emitter_flow_lph=default_emitter_flow_lph,
         default_efficiency=default_efficiency,
         default_effective_rainfall_ratio=default_effective_rainfall_ratio,
     )
@@ -169,8 +164,6 @@ def train_irrigation_model(
 def training_examples_from_rows(
     rows: list[dict],
     default_area_m2: float = 10000.0,
-    default_emitters_per_plant: int = 2,
-    default_emitter_flow_lph: float = 4.0,
     default_efficiency: float = 0.90,
     default_effective_rainfall_ratio: float = 0.80,
 ) -> list[TrainingExample]:
@@ -182,8 +175,6 @@ def training_examples_from_rows(
         features = row_to_features(
             row=row,
             default_area_m2=default_area_m2,
-            default_emitters_per_plant=default_emitters_per_plant,
-            default_emitter_flow_lph=default_emitter_flow_lph,
             default_efficiency=default_efficiency,
             default_effective_rainfall_ratio=default_effective_rainfall_ratio,
         )
@@ -194,8 +185,6 @@ def training_examples_from_rows(
 def row_to_features(
     row: dict,
     default_area_m2: float = 10000.0,
-    default_emitters_per_plant: int = 2,
-    default_emitter_flow_lph: float = 4.0,
     default_efficiency: float = 0.90,
     default_effective_rainfall_ratio: float = 0.80,
 ) -> dict[str, float | str]:
@@ -211,16 +200,6 @@ def row_to_features(
 
     plant_spacing = optional_float(row.get("marco_m2_por_planta")) or 0.0
     plants = area_m2 / plant_spacing if plant_spacing > 0 else 0.0
-    emitters = optional_float(row.get("goteros_por_planta")) or float(default_emitters_per_plant)
-    emitter_flow = optional_float(row.get("caudal_gotero_lph")) or default_emitter_flow_lph
-    flow_per_plant = optional_float(row.get("caudal_planta_lph"))
-    if flow_per_plant is None:
-        liters_per_plant = optional_float(row.get("litros_por_planta"))
-        runtime = optional_float(row.get("horas_riego"))
-        if liters_per_plant and runtime and runtime > 0:
-            flow_per_plant = liters_per_plant / runtime
-        else:
-            flow_per_plant = emitters * emitter_flow
 
     tmin = optional_float(row.get("tmin_c"))
     tmax = optional_float(row.get("tmax_c"))
@@ -244,9 +223,6 @@ def row_to_features(
         "plantas_estimadas": plants,
         "eficiencia_riego": optional_float(row.get("eficiencia_riego")) or default_efficiency,
         "lluvia_efectiva_ratio": optional_float(row.get("lluvia_efectiva_ratio")) or default_effective_rainfall_ratio,
-        "goteros_por_planta": emitters,
-        "caudal_gotero_lph": emitter_flow,
-        "caudal_planta_lph": flow_per_plant or 0.0,
         "estacion": str(row.get("estacion") or ""),
         "provincia": str(row.get("provincia") or ""),
         "cultivo": str(row.get("cultivo") or ""),
@@ -415,15 +391,11 @@ def predict_irrigation_with_model(
         station_id=station_id,
         province=province,
     )
-    rows = stabilize_operational_fields(rows=rows, schema=predictor.schema)
     predicted_mm = predictor.predict_mm(rows)
     daily = []
     for row, gross_mm in zip(rows, predicted_mm):
         liters_total = gross_mm * system.area_m2
         liters_per_plant = gross_mm * system.plant_spacing_m2 if system.plant_spacing_m2 else None
-        runtime_hours = None
-        if liters_per_plant is not None and system.flow_per_plant_lph:
-            runtime_hours = liters_per_plant / system.flow_per_plant_lph
         daily.append(
             {
                 "date": row["fecha"],
@@ -432,15 +404,11 @@ def predict_irrigation_with_model(
                 "predicted_liters_per_plant": round(liters_per_plant, 2)
                 if liters_per_plant is not None
                 else None,
-                "predicted_runtime_hours": round(runtime_hours, 2)
-                if runtime_hours is not None
-                else None,
             }
         )
 
     days = len(daily)
     total_liters = sum(day["predicted_liters_total"] for day in daily)
-    runtime_values = [day["predicted_runtime_hours"] for day in daily if day["predicted_runtime_hours"] is not None]
     plant_values = [day["predicted_liters_per_plant"] for day in daily if day["predicted_liters_per_plant"] is not None]
     gross_values = [day["predicted_gross_irrigation_mm"] for day in daily]
     return {
@@ -460,7 +428,6 @@ def predict_irrigation_with_model(
             "avg_liters_day": round(total_liters / days, 2) if days else 0.0,
             "avg_gross_mm_day": round(sum(gross_values) / days, 2) if days else 0.0,
             "avg_liters_plant_day": round(sum(plant_values) / len(plant_values), 2) if plant_values else None,
-            "avg_runtime_hours_day": round(sum(runtime_values) / len(runtime_values), 2) if runtime_values else None,
         },
         "daily": daily,
         "note": "Prediccion supervisada sobre historicos AEMET exportados y variables de cultivo/parcela.",
@@ -488,8 +455,6 @@ def prediction_rows_from_weather(
         area_m2=args.area_m2,
         efficiency=args.irrigation_efficiency,
         plant_spacing_m2=plant_spacing_m2,
-        emitters_per_plant=getattr(args, "emitters_per_plant", None),
-        emitter_flow_lph=getattr(args, "emitter_flow_lph", None),
     )
     rows = []
     for day in weather_days:
@@ -513,22 +478,9 @@ def prediction_rows_from_weather(
                 "superficie_m2": system.area_m2,
                 "eficiencia_riego": system.efficiency,
                 "lluvia_efectiva_ratio": getattr(args, "effective_rainfall_ratio", 0.80),
-                "goteros_por_planta": system.emitters_per_plant,
-                "caudal_gotero_lph": system.emitter_flow_lph,
-                "caudal_planta_lph": system.flow_per_plant_lph,
             }
         )
     return rows, system
-
-
-def stabilize_operational_fields(rows: list[dict], schema: FeatureSchema) -> list[dict]:
-    stabilized = []
-    for row in rows:
-        copy = dict(row)
-        for field in OPERATIONAL_OUTPUT_FIELDS.intersection(schema.numeric_fields):
-            copy[field] = schema.numeric_means.get(field, copy.get(field, 0.0))
-        stabilized.append(copy)
-    return stabilized
 
 
 def build_feature_schema(examples: list[TrainingExample]) -> FeatureSchema:

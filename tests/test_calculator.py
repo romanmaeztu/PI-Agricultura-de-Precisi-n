@@ -31,15 +31,13 @@ from irrigation_advisor.weather_cache import AemetCache
 
 
 class CalculatorTests(unittest.TestCase):
-    def test_daily_irrigation_for_olive_drip(self) -> None:
+    def test_daily_irrigation_for_olive(self) -> None:
         crop = build_crop_profile("olivar", "desarrollo")
         soil = build_soil_profile("franco", root_depth_m=0.60)
         system = IrrigationSystem(
             area_m2=10000,
             efficiency=0.90,
             plant_spacing_m2=8,
-            emitters_per_plant=2,
-            emitter_flow_lph=4,
         )
         report = recommend_irrigation(
             weather_days=[WeatherDay(date=date(2024, 5, 1), et0_mm=5.6, rain_mm=0)],
@@ -52,7 +50,6 @@ class CalculatorTests(unittest.TestCase):
         self.assertAlmostEqual(day.etc_mm, 3.92, places=2)
         self.assertAlmostEqual(day.gross_irrigation_mm, 4.36, places=2)
         self.assertAlmostEqual(day.liters_per_plant, 34.84, places=2)
-        self.assertAlmostEqual(day.runtime_hours, 4.36, places=2)
 
     def test_effective_rain_reduces_irrigation(self) -> None:
         crop = build_crop_profile("olivar", "desarrollo")
@@ -120,10 +117,6 @@ class CalculatorTests(unittest.TestCase):
                     "franco",
                     "--area-m2",
                     "1000",
-                    "--emitters-per-plant",
-                    "2",
-                    "--emitter-flow-lph",
-                    "4",
                 ]
             )
 
@@ -149,10 +142,6 @@ class CalculatorTests(unittest.TestCase):
                     "franco",
                     "--area-m2",
                     "1000",
-                    "--emitters-per-plant",
-                    "2",
-                    "--emitter-flow-lph",
-                    "4",
                 ]
             )
 
@@ -209,10 +198,6 @@ class CalculatorTests(unittest.TestCase):
                         "franco",
                         "--area-m2",
                         "1000",
-                        "--emitters-per-plant",
-                        "2",
-                        "--emitter-flow-lph",
-                        "4",
                         "--output-file",
                         str(output_file),
                     ]
@@ -350,8 +335,6 @@ class CalculatorTests(unittest.TestCase):
             wilting_point=None,
             area_m2=1000,
             irrigation_efficiency=0.90,
-            emitters_per_plant=2,
-            emitter_flow_lph=4,
             effective_rainfall_ratio=0.80,
             current_soil_moisture=None,
         )
@@ -390,8 +373,6 @@ class CalculatorTests(unittest.TestCase):
             effective_rainfall_ratio=0.80,
             current_soil_moisture=None,
             plant_spacing_m2=None,
-            emitters_per_plant=2,
-            emitter_flow_lph=4,
         )
         weather_days = [
             WeatherDay(date=date(2024, 5, 1), et0_mm=5.0, rain_mm=0.0, tmin_c=15.0, tmax_c=30.0, tmean_c=22.5),
@@ -422,9 +403,9 @@ class CalculatorTests(unittest.TestCase):
             weather_file.write_text(
                 "\n".join(
                     [
-                        "fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,horas_riego,ranking_demanda",
-                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,5.0,0.0,15.0,30.0,22.5,0.7,0.6,8.0,39.0,3.5,3.89,38888.89,31.11,3.89,1",
-                        "2024-05-02,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,6.0,1.0,16.0,31.0,23.5,0.7,0.6,8.0,39.0,4.2,3.78,37777.78,30.22,3.78,1",
+                        "fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,ranking_demanda",
+                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,5.0,0.0,15.0,30.0,22.5,0.7,0.6,8.0,39.0,3.5,3.89,38888.89,31.11,1",
+                        "2024-05-02,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,6.0,1.0,16.0,31.0,23.5,0.7,0.6,8.0,39.0,4.2,3.78,37777.78,30.22,1",
                     ]
                 )
                 + "\n",
@@ -451,10 +432,6 @@ class CalculatorTests(unittest.TestCase):
                         "franco",
                         "--area-m2",
                         "3500",
-                        "--emitters-per-plant",
-                        "2",
-                        "--emitter-flow-lph",
-                        "4",
                         "--output-file",
                         str(output_file),
                     ]
@@ -473,9 +450,9 @@ class CalculatorTests(unittest.TestCase):
             weather_file.write_text(
                 "\n".join(
                     [
-                        "fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,horas_riego,ranking_demanda",
-                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,5.0,0.0,15.0,30.0,22.5,0.7,0.6,8.0,39.0,3.5,3.89,38888.89,31.11,3.89,1",
-                        "2024-05-02,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,6.0,1.0,16.0,31.0,23.5,0.7,0.6,8.0,39.0,4.2,3.78,37777.78,30.22,3.78,1",
+                        "fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,ranking_demanda",
+                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,5.0,0.0,15.0,30.0,22.5,0.7,0.6,8.0,39.0,3.5,3.89,38888.89,31.11,1",
+                        "2024-05-02,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,6.0,1.0,16.0,31.0,23.5,0.7,0.6,8.0,39.0,4.2,3.78,37777.78,30.22,1",
                     ]
                 )
                 + "\n",
@@ -504,10 +481,6 @@ class CalculatorTests(unittest.TestCase):
                         "franco",
                         "--area-m2",
                         "3500",
-                        "--emitters-per-plant",
-                        "2",
-                        "--emitter-flow-lph",
-                        "4",
                         "--output-file",
                         str(output_file),
                     ]
@@ -570,10 +543,6 @@ class CalculatorTests(unittest.TestCase):
                         "franco",
                         "--area-m2",
                         "3500",
-                        "--emitters-per-plant",
-                        "2",
-                        "--emitter-flow-lph",
-                        "4",
                         "--output-file",
                         str(weather_file),
                     ]
@@ -618,10 +587,6 @@ class CalculatorTests(unittest.TestCase):
                         "franco",
                         "--area-m2",
                         "3500",
-                        "--emitters-per-plant",
-                        "2",
-                        "--emitter-flow-lph",
-                        "4",
                         "--output",
                         "json",
                         "--output-file",
@@ -635,7 +600,7 @@ class CalculatorTests(unittest.TestCase):
             self.assertEqual(result["ml_prediction"]["model"]["model_type"], "linear_ridge")
             self.assertGreater(result["ml_prediction"]["summary"]["avg_liters_day"], 0)
 
-    def test_ml_lamina_does_not_change_when_only_emitters_change(self) -> None:
+    def test_ml_prediction_outputs_only_water_dose(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             weather_file = Path(tmp_dir) / "training.csv"
             model_dir = Path(tmp_dir) / "model"
@@ -654,10 +619,6 @@ class CalculatorTests(unittest.TestCase):
                         "franco",
                         "--area-m2",
                         "3500",
-                        "--emitters-per-plant",
-                        "2",
-                        "--emitter-flow-lph",
-                        "4",
                         "--output-file",
                         str(weather_file),
                     ]
@@ -674,42 +635,37 @@ class CalculatorTests(unittest.TestCase):
                     ]
                 )
 
-            predictions = []
-            for emitters in ("1", "2"):
-                output = StringIO()
-                with redirect_stdout(output):
-                    exit_code = main(
-                        [
-                            "predict-ml",
-                            "--model-dir",
-                            str(model_dir),
-                            "--weather-file",
-                            str(weather_file),
-                            "--start",
-                            date.today().isoformat(),
-                            "--end",
-                            date.today().isoformat(),
-                            "--crop",
-                            "olivar",
-                            "--stage",
-                            "media",
-                            "--soil",
-                            "franco",
-                            "--area-m2",
-                            "3500",
-                            "--emitters-per-plant",
-                            emitters,
-                            "--emitter-flow-lph",
-                            "4",
-                            "--output",
-                            "json",
-                        ]
-                    )
-                self.assertEqual(exit_code, 0)
-                predictions.append(json.loads(output.getvalue())["ml_prediction"]["summary"])
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "predict-ml",
+                        "--model-dir",
+                        str(model_dir),
+                        "--weather-file",
+                        str(weather_file),
+                        "--start",
+                        date.today().isoformat(),
+                        "--end",
+                        date.today().isoformat(),
+                        "--crop",
+                        "olivar",
+                        "--stage",
+                        "media",
+                        "--soil",
+                        "franco",
+                        "--area-m2",
+                        "3500",
+                        "--output",
+                        "json",
+                    ]
+                )
 
-            self.assertAlmostEqual(predictions[0]["avg_gross_mm_day"], predictions[1]["avg_gross_mm_day"], places=2)
-            self.assertGreater(predictions[0]["avg_runtime_hours_day"], predictions[1]["avg_runtime_hours_day"])
+            self.assertEqual(exit_code, 0)
+            prediction = json.loads(output.getvalue())["ml_prediction"]
+            self.assertGreater(prediction["summary"]["avg_gross_mm_day"], 0)
+            self.assertNotIn("avg_runtime_hours_day", prediction["summary"])
+            self.assertNotIn("predicted_runtime_hours", prediction["daily"][0])
 
     def test_cli_build_ml_dataset_crosses_stations_crops_and_soils(self) -> None:
         class FakeAemetClient:
@@ -932,10 +888,6 @@ class CalculatorTests(unittest.TestCase):
                         "franco",
                         "--area-m2",
                         "3500",
-                        "--emitters-per-plant",
-                        "2",
-                        "--emitter-flow-lph",
-                        "4",
                         "--output",
                         "json",
                     ]

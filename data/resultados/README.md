@@ -28,8 +28,6 @@ python -m irrigation_advisor.cli recommend `
   --stage media `
   --soil franco `
   --area-m2 3500 `
-  --emitters-per-plant 2 `
-  --emitter-flow-lph 4 `
   --output-file data/resultados/recomendacion_cliente_olivar.md
 ```
 
@@ -46,8 +44,6 @@ python -m irrigation_advisor.cli recommend `
   --stage media `
   --soil franco `
   --area-m2 3500 `
-  --emitters-per-plant 2 `
-  --emitter-flow-lph 4 `
   --output-file data/resultados/recomendacion_cliente_olivar.md
 ```
 
