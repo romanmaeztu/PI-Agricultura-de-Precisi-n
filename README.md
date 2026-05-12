@@ -467,6 +467,13 @@ python -m unittest discover -s tests -v
 - AEMET no siempre publica todas las variables necesarias para Penman-Monteith. Por eso se usa Hargreaves-Samani como estimacion cuando faltan radiacion, viento o humedad.
 - El modulo calcula una recomendacion agronomica. El modelo ML debe entrenarse despues con historico suficiente y una variable objetivo validada.
 
+## Etica y licencia
+
+- La prediccion ML se presenta como apoyo a la decision, no como sustituto de supervision tecnica.
+- La API Key de AEMET y posibles datos privados de parcelas deben quedar fuera del repositorio.
+- La documentacion se publica bajo CC BY-NC-SA 4.0. Ver `LICENSE.md`.
+- El codigo fuente mantiene finalidad academica; si se libera como software reutilizable, debe definirse una licencia de software especifica.
+
 ## Referencias
 
 [1] Agencia Estatal de Meteorologia, "AEMET OpenData: informacion del servicio," AEMET, 2026. [Online]. Available: https://opendata.aemet.es/centrodedescargas/info. [Accessed: May 6, 2026].

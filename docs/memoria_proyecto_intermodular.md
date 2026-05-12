@@ -197,6 +197,17 @@ Streamlit es un framework de Python orientado a crear aplicaciones web de datos 
 
 La validación del prototipo se ha realizado con `unittest`, el framework de pruebas unitarias incluido en Python [8]. Las pruebas comprueban los cálculos principales, los perfiles de cultivos, la exportación de resultados, el entrenamiento del modelo y el selector de estaciones.
 
+### 2.10 Ética, datos y uso responsable de IA
+
+El uso de IA en un sistema de recomendación agrícola debe tratarse como una herramienta de apoyo a la decisión, no como una autoridad absoluta. Las recomendaciones internacionales sobre ética de la IA destacan la necesidad de transparencia, supervisión humana, prevención de daños y responsabilidad en el uso de los datos [10]. En la Unión Europea, el Reglamento (UE) 2024/1689 establece un marco orientado a promover sistemas de IA fiables y centrados en la persona, con atención a la seguridad, los derechos fundamentales y la trazabilidad [11].
+
+Aplicado a este proyecto, esto implica cuatro criterios:
+
+- Explicar de forma clara cómo se calcula la recomendación de riego.
+- No presentar la predicción ML como verdad de campo si no está calibrada con sensores reales.
+- No publicar claves API ni datos privados de parcelas o usuarios.
+- Mantener intervención humana en la decisión final de riego.
+
 ## 3. Marco metodológico
 
 ### 3.1 Metodología de desarrollo
@@ -300,7 +311,38 @@ El modelo utiliza como entrada variables numéricas y categóricas. Las variable
 
 La recomendación se centra en la necesidad hídrica de la plantación: milímetros de riego, litros totales y litros por planta. La forma hidráulica concreta de reparto queda fuera del alcance principal del prototipo.
 
-### 3.8 Cronograma
+El dataset utilizado en el prototipo puede considerarse semisintético: los datos meteorológicos proceden de AEMET, pero la etiqueta `riego_bruto_mm` se genera mediante el cálculo agronómico implementado. Esta decisión permite entrenar y validar la capa ML de forma reproducible. La limitación es que el modelo aprende a aproximar el motor agronómico, no una respuesta medida directamente en campo.
+
+### 3.8 Trazabilidad entre objetivos, metodología y validación
+
+Para mantener coherencia entre lo planteado en la introducción y lo entregado en resultados, cada objetivo específico se vincula con una herramienta, un desarrollo y una forma de validación.
+
+| Escalón | Objetivo específico | Herramientas/datos | Desarrollo realizado | Validación |
+|---:|---|---|---|---|
+| 1 | Diseñar captación de datos climáticos y agronómicos. | Variables AEMET, suelo, cultivo y parcela. | Definición de modelos de datos y perfiles de cultivo. | Pruebas de perfiles y revisión de variables del dataset. |
+| 2 | Conectar con AEMET. | AEMET OpenData y cache local SQLite. | Cliente API, selector nacional de estaciones y ETL. | Descarga por estación/fecha y pruebas con cache. |
+| 3 | Implementar cálculo de riego. | ET0, Kc, lluvia efectiva, eficiencia y superficie. | Motor agronómico en Python. | Pruebas unitarias de riego, lluvia y primer riego. |
+| 4 | Comparar cultivos. | Olivar, cítricos y almendro. | Comparativa diaria y resumen por cultivo. | Ranking de demanda y exportación CSV/JSON/Markdown. |
+| 5 | Crear capa ML. | Dataset AEMET + variables de cultivo/parcela. | Modelo Keras y alternativa lineal. | Métricas MAE, RMSE y R2. |
+| 6 | Crear interfaz. | Streamlit. | Formulario de cliente y visualización de resultados. | Prueba funcional en navegador local. |
+| 7 | Preparar Big Data. | Estructura compatible con BigQuery. | Columnas exportables y flujo ETL documentado. | Dataset tabular preparado para carga futura. |
+
+### 3.9 Diagrama de Gantt
+
+El siguiente Gantt resume la planificación por semanas. Se presenta como cronograma académico del desarrollo realizado.
+
+| Actividad | S1 | S2 | S3 | S4 | S5 | S6 | S7 | S8 |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Definición del problema y objetivos | X |  |  |  |  |  |  |  |
+| Marco teórico y variables agronómicas | X | X |  |  |  |  |  |  |
+| Motor de cálculo de riego |  | X | X |  |  |  |  |  |
+| Integración AEMET y ETL |  |  | X | X |  |  |  |  |
+| Exportación de datasets y resumen |  |  |  | X | X |  |  |  |
+| Interfaz Streamlit |  |  |  |  | X | X |  |  |
+| Modelo ML/Keras |  |  |  |  |  | X | X |  |
+| Pruebas, memoria y GitHub |  |  |  |  |  |  | X | X |
+
+### 3.10 Cronograma
 
 | Semana | Actividad | Resultado |
 |---:|---|---|
@@ -313,7 +355,20 @@ La recomendación se centra en la necesidad hídrica de la plantación: milímet
 | 7 | Implementación de ML/Keras. | Modelo predictivo entrenado. |
 | 8 | Pruebas, documentación y GitHub. | Proyecto preparado para entrega. |
 
-### 3.9 Presupuesto estimado
+### 3.11 ROI y viabilidad económica
+
+No se calcula un ROI monetario cerrado porque faltan datos reales de explotación: consumo histórico de riego tradicional, precio del agua, coste del servicio, coste de sensores y ahorro confirmado en campo. Para evitar estimaciones no justificadas, el proyecto deja definido el método de cálculo:
+
+```text
+ahorro_agua_L = riego_tradicional_L - riego_recomendado_L
+ahorro_agua_m3 = ahorro_agua_L / 1000
+ahorro_economico = ahorro_agua_m3 * precio_agua_m3
+ROI = ((ahorro_economico - coste_implantacion) / coste_implantacion) * 100
+```
+
+La aplicación ya ofrece la variable necesaria para alimentar este análisis: litros recomendados por parcela, cultivo y periodo. Con datos reales de consumo previo, el ROI puede calcularse sin modificar el sistema.
+
+### 3.12 Presupuesto estimado
 
 | Concepto | Cantidad | Coste unitario | Coste estimado |
 |---|---:|---:|---:|
@@ -328,6 +383,16 @@ La recomendación se centra en la necesidad hídrica de la plantación: milímet
 | Total estimado |  |  | 1.450 EUR |
 
 El presupuesto distingue entre el prototipo software ya desarrollado y una posible instalación IoT en campo. Las herramientas principales utilizadas son gratuitas o de código abierto.
+
+### 3.13 Gestión ética y licencia del proyecto
+
+La gestión ética del proyecto se aplica en tres niveles:
+
+- **Datos:** se usan datos meteorológicos oficiales y no se publican credenciales ni datos privados de clientes.
+- **Modelo ML:** se informa de que la predicción está entrenada sobre datos históricos y etiquetas agronómicas, por lo que requiere calibración antes de operar como recomendación profesional.
+- **Usuario:** la interfaz muestra resultados interpretables y mantiene la decisión final bajo supervisión humana.
+
+La memoria, tablas, diagramas y materiales de documentación se proponen bajo licencia Creative Commons Reconocimiento-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0) [12]. El código fuente queda vinculado al repositorio académico y, si se libera como software reutilizable, deberá acompañarse de una licencia de software específica.
 
 ## 4. Resultados
 
@@ -391,7 +456,7 @@ Este resultado convierte los cálculos técnicos en una recomendación entendibl
 
 ### 4.5 Resultado del modelo ML/Keras
 
-El modelo Keras se entrenó con un dataset de 168 filas y 24 variables de entrada. La validación interna obtuvo:
+El modelo Keras se entrenó con un dataset de 168 filas y variables climáticas/agronómicas codificadas. La validación interna obtuvo:
 
 | Métrica | Resultado |
 |---|---:|
@@ -420,7 +485,7 @@ La diferencia es mínima porque el modelo se ha entrenado con etiquetas derivada
 El proyecto ha sido validado mediante pruebas unitarias. La última ejecución conocida produjo:
 
 ```text
-Ran 21 tests
+Ran 26 tests
 OK
 ```
 
@@ -451,14 +516,15 @@ Para la entrega definitiva se deben insertar capturas reales del sistema:
 
 ### 4.9 Comparación con objetivos iniciales
 
-| Objetivo específico | Estado | Evidencia |
-|---|---|---|
-| Diseñar red de sensores IoT | Parcial | Variables edáficas y fisiológicas definidas; sensores pendientes de instalación real. |
-| Configurar BigQuery | Parcial | Estructura de dataset preparada; ingesta cloud pendiente. |
-| Entrenar modelo ML >85 % | Cumplido en prototipo | Keras con R2 = 0,9978 sobre validación interna. |
-| Crear dashboard interactivo | Cumplido | Interfaz Streamlit con estación, cultivo, suelo, parcela y ML. |
-| Usar AEMET real | Cumplido | Cliente AEMET, inventario nacional y datos diarios por estación. |
-| Comparar cultivos | Cumplido | Olivar, cítricos y almendro con variables propias. |
+| Escalón | Objetivo específico | Estado | Evidencia |
+|---:|---|---|---|
+| 1 | Diseñar captación de datos climáticos y agronómicos. | Cumplido en prototipo | Variables AEMET, suelo, cultivo y parcela definidas. |
+| 2 | Conectar el sistema con AEMET. | Cumplido | Cliente AEMET, inventario nacional, cache local y datos diarios por estación. |
+| 3 | Implementar cálculo agronómico de riego. | Cumplido | Motor de cálculo con ETc, lluvia efectiva, riego bruto y litros. |
+| 4 | Incorporar cultivos configurables. | Cumplido | Olivar, cítricos y almendro con Kc, raíz, marco y agotamiento propios. |
+| 5 | Crear capa predictiva ML. | Cumplido en prototipo | Modelo Keras/TensorFlow con R2 superior a 0,85 sobre validación interna. |
+| 6 | Desarrollar interfaz de usuario. | Cumplido | App Streamlit con estación, cultivo, suelo, parcela y ML opcional. |
+| 7 | Preparar almacenamiento masivo. | Parcial | Dataset exportable y estructura compatible; despliegue BigQuery pendiente. |
 
 ## 5. Conclusiones
 
@@ -468,7 +534,23 @@ El proyecto ha evolucionado desde una idea inicial de cálculo de riego hacia un
 
 La principal fortaleza del trabajo es que combina una base agronómica trazable con una capa de Machine Learning. Esto evita que el modelo sea una caja negra sin justificación y permite explicar de dónde salen los resultados.
 
-### 5.2 Aprendizajes significativos
+### 5.2 Conclusiones según los objetivos específicos
+
+Las conclusiones se ordenan siguiendo la misma escalera definida en la introducción:
+
+| Escalón | Conclusión |
+|---:|---|
+| 1 | La estructura de datos climáticos, edáficos, fisiológicos y de parcela queda definida y preparada para ampliarse con sensores IoT. |
+| 2 | La conexión con AEMET permite trabajar con estaciones reales, datos diarios y un flujo ETL reproducible. |
+| 3 | El cálculo agronómico ofrece una recomendación defendible en litros, litros por planta y milímetros de riego. |
+| 4 | La comparación entre olivar, cítricos y almendro demuestra que el cultivo modifica de forma significativa la demanda hídrica. |
+| 5 | La capa ML/Keras queda integrada y validada como aproximación al cálculo agronómico, aunque requiere datos reales de campo para uso profesional. |
+| 6 | La interfaz Streamlit transforma el cálculo técnico en un servicio entendible para un cliente. |
+| 7 | La estructura exportable deja preparado el salto a BigQuery y a una arquitectura de análisis masivo. |
+
+El objetivo general se alcanza a nivel de prototipo: el sistema analiza datos meteorológicos y agronómicos para optimizar la recomendación de riego. La validación comercial real queda condicionada a la incorporación de sensores, histórico de riego aplicado y contraste con parcelas reales.
+
+### 5.3 Aprendizajes significativos
 
 Durante el desarrollo se han trabajado varios aprendizajes:
 
@@ -479,9 +561,10 @@ Durante el desarrollo se han trabajado varios aprendizajes:
 - Creación de una interfaz web con Streamlit.
 - Entrenamiento de una red neuronal con TensorFlow/Keras.
 - Uso de GitHub para versionar el proyecto.
+- Documentación metodológica con Scrum, backlog, Gantt y trazabilidad por objetivos.
 - Validación mediante pruebas unitarias.
 
-### 5.3 Dificultades encontradas
+### 5.4 Dificultades encontradas
 
 Las principales dificultades han sido:
 
@@ -490,8 +573,9 @@ Las principales dificultades han sido:
 - Diferenciar cálculo agronómico, predicción ML y validación real.
 - Convertir resultados técnicos en una salida útil para un cliente.
 - Evitar que el objetivo de Machine Learning se presente como precisión absoluta cuando todavía no hay sensores reales de campo.
+- Plantear el ROI sin inventar datos económicos no medidos.
 
-### 5.4 Mejoras futuras
+### 5.5 Mejoras futuras
 
 Las mejoras más importantes serían:
 
@@ -504,7 +588,7 @@ Las mejoras más importantes serían:
 - Generar informes comerciales en PDF.
 - Desplegar el servicio en cloud.
 
-### 5.5 Cierre
+### 5.6 Cierre
 
 El proyecto demuestra que es posible construir un servicio de recomendación de riego apoyado en datos oficiales, reglas agronómicas y aprendizaje automático. La versión actual es un prototipo funcional y defendible. Su valor principal está en la estructura: cada módulo puede ampliarse sin romper el sistema completo.
 
@@ -527,6 +611,12 @@ El proyecto demuestra que es posible construir un servicio de recomendación de 
 [8] Python Software Foundation, "unittest - Unit testing framework," Python documentation. [En línea]. Disponible en: https://docs.python.org/es/3/library/unittest.html. [Accedido: 11-may-2026].
 
 [9] K. Schwaber y J. Sutherland, "The Scrum Guide," Scrum Guides, nov. 2020. [En línea]. Disponible en: https://scrumguides.org/download.html. [Accedido: 11-may-2026].
+
+[10] UNESCO, "Recommendation on the Ethics of Artificial Intelligence," UNESCO, 2021. [En línea]. Disponible en: https://www.unesco.org/en/legal-affairs/recommendation-ethics-artificial-intelligence. [Accedido: 12-may-2026].
+
+[11] Parlamento Europeo y Consejo de la Unión Europea, "Regulation (EU) 2024/1689 of the European Parliament and of the Council of 13 June 2024 laying down harmonised rules on artificial intelligence," Diario Oficial de la Unión Europea, 12-jul-2024. [En línea]. Disponible en: https://eur-lex.europa.eu/eli/reg/2024/1689/oj. [Accedido: 12-may-2026].
+
+[12] Creative Commons, "Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)," Creative Commons. [En línea]. Disponible en: https://creativecommons.org/licenses/by-nc-sa/4.0/. [Accedido: 12-may-2026].
 
 ## 7. Anexos
 
@@ -604,3 +694,37 @@ python -m irrigation_advisor.cli predict-ml `
 - BigQuery está definido como arquitectura, pero no desplegado.
 - Los coeficientes de cultivo son valores de referencia y deben calibrarse por variedad, manejo y fase real.
 - La predicción usa históricos y cálculo agronómico como base; para operación comercial debe validarse en campo.
+
+### Anexo D. Product Backlog Scrum
+
+El Product Backlog recoge las funcionalidades necesarias para alcanzar el objetivo general. La prioridad se ha definido según su impacto en la utilidad del prototipo.
+
+| ID | Historia/tarea | Prioridad | Estado |
+|---|---|---|---|
+| PB-01 | Como usuario, quiero elegir una estación AEMET para trabajar con datos reales de mi zona. | Alta | Completado |
+| PB-02 | Como usuario, quiero introducir cultivo, fase, suelo y superficie para adaptar el cálculo a mi parcela. | Alta | Completado |
+| PB-03 | Como usuario, quiero obtener litros totales, litros por planta y lámina de riego. | Alta | Completado |
+| PB-04 | Como usuario, quiero comparar olivar, cítricos y almendro bajo el mismo escenario. | Alta | Completado |
+| PB-05 | Como desarrollador, quiero exportar datasets CSV/JSON para análisis y BigQuery. | Media | Completado |
+| PB-06 | Como usuario, quiero activar una predicción ML entrenada con históricos. | Media | Completado |
+| PB-07 | Como usuario, quiero trabajar con cache local para no saturar AEMET. | Media | Completado |
+| PB-08 | Como responsable técnico, quiero integrar sensores IoT reales. | Alta | Pendiente |
+| PB-09 | Como responsable del servicio, quiero calcular ROI con consumos y costes reales. | Media | Pendiente |
+| PB-10 | Como usuario final, quiero informes PDF comerciales. | Baja | Pendiente |
+
+### Anexo E. Sprint Backlog
+
+| Sprint | Objetivo | Tareas principales | Entregable |
+|---|---|---|---|
+| Sprint 1 | Base agronómica | Definir cultivos, suelos, ET0, Kc y fórmula de riego. | Motor de cálculo inicial. |
+| Sprint 2 | Datos AEMET | Implementar cliente API, búsqueda de estaciones y ETL. | Datos diarios por estación. |
+| Sprint 3 | Comparativas | Añadir tres cultivos, exportaciones y resumen. | CSV/Markdown defendibles. |
+| Sprint 4 | Servicio cliente | Crear interfaz Streamlit y formulario de parcela. | App local funcional. |
+| Sprint 5 | Machine Learning | Generar dataset ML, entrenar Keras y medir resultados. | Modelo predictivo. |
+| Sprint 6 | Calidad y entrega | Añadir pruebas, memoria, GitHub, ética, Gantt y anexos. | Proyecto documentado. |
+
+### Anexo F. Licencia documental
+
+La memoria y documentación asociada se publican bajo licencia Creative Commons Reconocimiento-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0). Esto permite compartir y adaptar el material citando la autoría, sin uso comercial y manteniendo la misma licencia en obras derivadas [12].
+
+El código fuente se mantiene en el repositorio académico del proyecto. Para una publicación como software reutilizable se recomienda añadir una licencia específica de software, por ejemplo MIT, Apache-2.0 o GPL, según el nivel de apertura deseado.
