@@ -2,6 +2,14 @@
 
 Este MVP calcula cuanto regar una parcela a partir de datos climaticos de AEMET, el cultivo elegido y la superficie indicada por el cliente. Es un primer escalon tecnico: antes de vender una prediccion, el calculo debe ser trazable y defendible.
 
+## Documentacion de entrega
+
+- Memoria final en Word: `docs/memoria_proyecto_intermodular.docx`.
+- Memoria editable en Markdown: `docs/memoria_proyecto_intermodular.md`.
+- Checklist de entrega: `docs/checklist_entrega_final.md`.
+- Guion de defensa: `docs/guion_defensa.md`.
+- Capturas de la interfaz: `docs/capturas/`.
+
 ## Logica de calculo
 
 1. Se obtiene ET0 diaria.
