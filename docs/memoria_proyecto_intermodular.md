@@ -7,7 +7,7 @@
 **Repositorio:** https://github.com/romanmaeztu/PI-Agricultura-de-Precisi-n  
 **Fecha:** Mayo de 2026  
 
-> Documento base para revisión académica. Las capturas de pantalla, datos personales del centro y validación final con el tutor deben completarse antes de la entrega.
+> Documento base para revisión académica. Los datos personales del centro y la validación final con el tutor deben completarse antes de la entrega.
 
 ## Tabla de contenidos
 
@@ -501,18 +501,52 @@ Las pruebas cubren:
 - Predicción desde modelo entrenado.
 - Selector nacional de estaciones AEMET.
 
-### 4.8 Capturas pendientes para la memoria final
+### 4.8 Capturas del sistema
 
-Para la entrega definitiva se deben insertar capturas reales del sistema:
+Las siguientes capturas corresponden a una ejecución real del prototipo. El escenario utilizado para documentar la prueba es: estación AEMET Sevilla Aeropuerto, periodo del 01/05/2024 al 07/05/2024, cultivo olivar, fase media, suelo franco, superficie de 3.500 m2 y modelo ML activado.
 
-| Figura | Captura recomendada |
+| Figura | Evidencia aportada |
 |---:|---|
-| Figura 1 | Interfaz principal de Streamlit. |
-| Figura 2 | Selector de estaciones AEMET por provincia/nombre. |
-| Figura 3 | Configuración de cultivo, suelo y parcela. |
-| Figura 4 | Resultado de recomendación de riego. |
-| Figura 5 | Comparación entre cálculo agronómico y ML. |
-| Figura 6 | Ejecución de pruebas unitarias en consola. |
+| Figura 1 | Selector nacional de estaciones AEMET mediante cache local. |
+| Figura 2 | Formulario principal de configuración de estación, fechas, cultivo, suelo y parcela. |
+| Figura 3 | Activación del modelo predictivo ML entrenado. |
+| Figura 4 | Resultados principales del cálculo agronómico de riego. |
+| Figura 5 | Predicción ML y comparación con el cálculo diario. |
+| Figura 6 | Detalle diario y exportación de resultados. |
+| Figura 7 | Ejecución de pruebas unitarias. |
+| Figura 8 | Evidencia de control de versiones y repositorio GitHub. |
+
+**Figura 1. Selector nacional de estaciones AEMET.**
+
+![Selector nacional de estaciones AEMET](capturas/figura_00_selector_estacion_aemet.png)
+
+**Figura 2. Formulario de configuración de parcela.**
+
+![Formulario de configuración de parcela](capturas/figura_01_formulario_configuracion.png)
+
+**Figura 3. Activación del modelo ML.**
+
+![Activación del modelo ML](capturas/figura_02_modelo_ml_activado.png)
+
+**Figura 4. Resultados principales del cálculo agronómico.**
+
+![Resultados principales](capturas/figura_03_resultados_principales.png)
+
+**Figura 5. Predicción ML.**
+
+![Predicción ML](capturas/figura_04_prediccion_ml.png)
+
+**Figura 6. Detalle diario y exportación.**
+
+![Detalle diario](capturas/figura_05_detalle_diario.png)
+
+**Figura 7. Pruebas unitarias superadas.**
+
+![Pruebas unitarias](capturas/figura_06_pruebas_unitarias.png)
+
+**Figura 8. Control de versiones del proyecto.**
+
+![Control de versiones](capturas/figura_07_control_versiones.png)
 
 ### 4.9 Comparación con objetivos iniciales
 
