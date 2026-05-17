@@ -1,4 +1,4 @@
-from datetime import date
+﻿from datetime import date
 from contextlib import redirect_stdout
 from pathlib import Path
 from io import StringIO
@@ -113,8 +113,6 @@ class CalculatorTests(unittest.TestCase):
                     "citricos",
                     "--stage",
                     "media",
-                    "--soil",
-                    "franco",
                     "--area-m2",
                     "1000",
                 ]
@@ -123,7 +121,6 @@ class CalculatorTests(unittest.TestCase):
         result = json.loads(output.getvalue())
         self.assertEqual(exit_code, 0)
         self.assertEqual(result["crop"]["kc"], 0.75)
-        self.assertEqual(result["soil"]["root_depth_m"], 0.7)
         self.assertEqual(result["system"]["plant_spacing_m2"], 20.0)
 
     def test_cli_compare_returns_three_crop_ranking(self) -> None:
@@ -138,8 +135,6 @@ class CalculatorTests(unittest.TestCase):
                     "0",
                     "--stage",
                     "media",
-                    "--soil",
-                    "franco",
                     "--area-m2",
                     "1000",
                 ]
@@ -165,8 +160,6 @@ class CalculatorTests(unittest.TestCase):
                     "0",
                     "--stage",
                     "media",
-                    "--soil",
-                    "franco",
                     "--area-m2",
                     "1000",
                     "--output",
@@ -194,8 +187,6 @@ class CalculatorTests(unittest.TestCase):
                         "0",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "1000",
                         "--output-file",
@@ -228,8 +219,6 @@ class CalculatorTests(unittest.TestCase):
                         "0",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "1000",
                         "--output-file",
@@ -257,8 +246,6 @@ class CalculatorTests(unittest.TestCase):
                         "0",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "1000",
                         "--output-file",
@@ -302,8 +289,6 @@ class CalculatorTests(unittest.TestCase):
                         "0",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "1000",
                         "--output-file",
@@ -330,13 +315,9 @@ class CalculatorTests(unittest.TestCase):
     def test_daily_export_rows_include_station_and_dates(self) -> None:
         args = SimpleNamespace(
             stage="media",
-            soil="franco",
-            field_capacity=None,
-            wilting_point=None,
             area_m2=1000,
             irrigation_efficiency=0.90,
             effective_rainfall_ratio=0.80,
-            current_soil_moisture=None,
         )
         weather_days = [
             WeatherDay(date=date(2024, 5, 1), et0_mm=5.0, rain_mm=0.0, tmin_c=15.0, tmax_c=30.0, tmean_c=22.5),
@@ -346,7 +327,6 @@ class CalculatorTests(unittest.TestCase):
         reports = compare_crop_reports(args=args, weather_days=weather_days)
         rows = reports_to_daily_export_rows(
             reports=reports,
-            soil_name="franco",
             station_id="5783",
             station_name="SEVILLA AEROPUERTO",
             province="SEVILLA",
@@ -363,15 +343,9 @@ class CalculatorTests(unittest.TestCase):
             crop="olivar",
             stage="media",
             kc=None,
-            soil="franco",
-            root_depth_m=None,
-            field_capacity=None,
-            wilting_point=None,
-            max_depletion_fraction=None,
             area_m2=3500,
             irrigation_efficiency=0.90,
             effective_rainfall_ratio=0.80,
-            current_soil_moisture=None,
             plant_spacing_m2=None,
         )
         weather_days = [
@@ -403,9 +377,9 @@ class CalculatorTests(unittest.TestCase):
             weather_file.write_text(
                 "\n".join(
                     [
-                        "fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,ranking_demanda",
-                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,5.0,0.0,15.0,30.0,22.5,0.7,0.6,8.0,39.0,3.5,3.89,38888.89,31.11,1",
-                        "2024-05-02,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,6.0,1.0,16.0,31.0,23.5,0.7,0.6,8.0,39.0,4.2,3.78,37777.78,30.22,1",
+                        "fecha,estacion,nombre_estacion,provincia,cultivo,fase,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,marco_m2_por_planta,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,ranking_demanda",
+                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,5.0,0.0,15.0,30.0,22.5,0.7,8.0,3.5,3.89,38888.89,31.11,1",
+                        "2024-05-02,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,6.0,1.0,16.0,31.0,23.5,0.7,8.0,4.2,3.78,37777.78,30.22,1",
                     ]
                 )
                 + "\n",
@@ -428,8 +402,6 @@ class CalculatorTests(unittest.TestCase):
                         "olivar",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "3500",
                         "--output-file",
@@ -450,9 +422,9 @@ class CalculatorTests(unittest.TestCase):
             weather_file.write_text(
                 "\n".join(
                     [
-                        "fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,ranking_demanda",
-                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,5.0,0.0,15.0,30.0,22.5,0.7,0.6,8.0,39.0,3.5,3.89,38888.89,31.11,1",
-                        "2024-05-02,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,franco,6.0,1.0,16.0,31.0,23.5,0.7,0.6,8.0,39.0,4.2,3.78,37777.78,30.22,1",
+                        "fecha,estacion,nombre_estacion,provincia,cultivo,fase,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,marco_m2_por_planta,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,ranking_demanda",
+                        "2024-05-01,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,5.0,0.0,15.0,30.0,22.5,0.7,8.0,3.5,3.89,38888.89,31.11,1",
+                        "2024-05-02,5783,SEVILLA AEROPUERTO,SEVILLA,olivar,media,6.0,1.0,16.0,31.0,23.5,0.7,8.0,4.2,3.78,37777.78,30.22,1",
                     ]
                 )
                 + "\n",
@@ -477,8 +449,6 @@ class CalculatorTests(unittest.TestCase):
                         "olivar",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "3500",
                         "--output-file",
@@ -499,7 +469,6 @@ class CalculatorTests(unittest.TestCase):
                 "provincia": "SEVILLA",
                 "cultivo": "olivar",
                 "fase": "media",
-                "suelo": "franco",
                 "superficie_m2": "3500",
                 "eficiencia_riego": "0.90",
                 "lluvia_efectiva_ratio": "0.80",
@@ -509,9 +478,7 @@ class CalculatorTests(unittest.TestCase):
                 "tmax_c": "30.0",
                 "tmedia_c": "22.5",
                 "kc": "0.7",
-                "profundidad_raices_m": "0.6",
                 "marco_m2_por_planta": "8.0",
-                "agua_facilmente_disponible_mm": "39.0",
                 "riego_bruto_mm": "3.89",
                 "litros_totales": "13611.11",
             }
@@ -539,8 +506,6 @@ class CalculatorTests(unittest.TestCase):
                         "0",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "3500",
                         "--output-file",
@@ -583,8 +548,6 @@ class CalculatorTests(unittest.TestCase):
                         "olivar",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "3500",
                         "--output",
@@ -615,8 +578,6 @@ class CalculatorTests(unittest.TestCase):
                         "0",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "3500",
                         "--output-file",
@@ -652,8 +613,6 @@ class CalculatorTests(unittest.TestCase):
                         "olivar",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "3500",
                         "--output",
@@ -667,7 +626,7 @@ class CalculatorTests(unittest.TestCase):
             self.assertNotIn("avg_runtime_hours_day", prediction["summary"])
             self.assertNotIn("predicted_runtime_hours", prediction["daily"][0])
 
-    def test_cli_build_ml_dataset_crosses_stations_crops_and_soils(self) -> None:
+    def test_cli_build_ml_dataset_crosses_stations_crops_and_stages(self) -> None:
         class FakeAemetClient:
             stations = [
                 Station("5783", "SEVILLA AEROPUERTO", "SEVILLA", 37.42, -5.90),
@@ -717,10 +676,6 @@ class CalculatorTests(unittest.TestCase):
                             "almendro",
                             "--stage",
                             "media",
-                            "--soil",
-                            "franco",
-                            "--soil",
-                            "arcilloso",
                             "--area-m2",
                             "3500",
                             "--output-file",
@@ -739,11 +694,12 @@ class CalculatorTests(unittest.TestCase):
                 rows = list(csv.DictReader(file))
 
             self.assertEqual(exit_code, 0)
-            self.assertEqual(result["rows"], 16)
-            self.assertEqual(len(rows), 16)
+            self.assertEqual(result["rows"], 8)
+            self.assertEqual(len(rows), 8)
             self.assertEqual({row["estacion"] for row in rows}, {"5783", "5402"})
             self.assertEqual({row["cultivo"] for row in rows}, {"olivar", "almendro"})
-            self.assertEqual({row["suelo"] for row in rows}, {"franco", "arcilloso"})
+            self.assertNotIn("suelo", rows[0])
+            self.assertNotIn("profundidad_raices_m", rows[0])
             self.assertTrue((model_dir / "model.json").exists())
 
     def test_cli_build_ml_dataset_can_use_cached_weather_file(self) -> None:
@@ -777,10 +733,6 @@ class CalculatorTests(unittest.TestCase):
                         "olivar",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
-                        "--soil",
-                        "arcilloso",
                         "--output-file",
                         str(output_file),
                     ]
@@ -791,9 +743,9 @@ class CalculatorTests(unittest.TestCase):
                 rows = list(csv.DictReader(file))
 
             self.assertEqual(exit_code, 0)
-            self.assertEqual(result["rows"], 4)
+            self.assertEqual(result["rows"], 2)
             self.assertEqual({row["estacion"] for row in rows}, {"5783", "5402"})
-            self.assertEqual({row["suelo"] for row in rows}, {"franco", "arcilloso"})
+            self.assertNotIn("suelo", rows[0])
 
     def test_station_selector_helpers_filter_and_label_aemet_inventory(self) -> None:
         stations = [
@@ -884,8 +836,6 @@ class CalculatorTests(unittest.TestCase):
                         "olivar",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--area-m2",
                         "3500",
                         "--output",
@@ -929,8 +879,6 @@ class CalculatorTests(unittest.TestCase):
                         "olivar",
                         "--stage",
                         "media",
-                        "--soil",
-                        "franco",
                         "--output-file",
                         str(output_file),
                     ]
@@ -945,3 +893,4 @@ class CalculatorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

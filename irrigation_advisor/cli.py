@@ -12,9 +12,11 @@ from typing import Sequence
 from .aemet_client import AemetClient, Station
 from .calculator import build_crop_profile, build_soil_profile, recommend_irrigation
 from .ml import predict_irrigation_with_model, train_irrigation_model
-from .models import CROP_DEFAULTS, SOIL_DEFAULTS, IrrigationReport, IrrigationSystem, WeatherDay
+from .models import CROP_DEFAULTS, IrrigationReport, IrrigationSystem, WeatherDay
 from .weather_cache import AemetCache, DEFAULT_CACHE_DB
 
+
+DEFAULT_TECHNICAL_SOIL = "franco"
 
 EXPORT_FIELDNAMES = [
     "fecha",
@@ -23,7 +25,6 @@ EXPORT_FIELDNAMES = [
     "provincia",
     "cultivo",
     "fase",
-    "suelo",
     "superficie_m2",
     "eficiencia_riego",
     "lluvia_efectiva_ratio",
@@ -33,9 +34,7 @@ EXPORT_FIELDNAMES = [
     "tmax_c",
     "tmedia_c",
     "kc",
-    "profundidad_raices_m",
     "marco_m2_por_planta",
-    "agua_facilmente_disponible_mm",
     "etc_mm",
     "riego_bruto_mm",
     "litros_totales",
@@ -52,7 +51,6 @@ SUMMARY_FIELDNAMES = [
     "fecha_fin",
     "cultivo",
     "fase",
-    "suelo",
     "dias_analizados",
     "et0_media_mm",
     "lluvia_total_mm",
@@ -145,7 +143,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         reports = compare_crop_reports(args=args, weather_days=weather_days)
         rows = reports_to_daily_export_rows(
             reports=reports,
-            soil_name=args.soil,
             station_id=station_id,
             station_name=station_name,
             province=province,
@@ -264,18 +261,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     crop = build_crop_profile(crop=args.crop, stage=args.stage, kc=args.kc)
-    root_depth_m = args.root_depth_m if args.root_depth_m is not None else crop.root_depth_m
-    max_depletion_fraction = (
-        args.max_depletion_fraction
-        if args.max_depletion_fraction is not None
-        else crop.max_depletion_fraction
-    )
     soil = build_soil_profile(
-        soil=args.soil,
-        root_depth_m=root_depth_m,
-        field_capacity=args.field_capacity,
-        wilting_point=args.wilting_point,
-        max_depletion_fraction=max_depletion_fraction,
+        soil=DEFAULT_TECHNICAL_SOIL,
+        root_depth_m=crop.root_depth_m,
+        max_depletion_fraction=crop.max_depletion_fraction,
     )
     plant_spacing_m2 = (
         args.plant_spacing_m2
@@ -320,7 +309,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         soil=soil,
         system=system,
         effective_rainfall_ratio=args.effective_rainfall_ratio,
-        current_soil_moisture=args.current_soil_moisture,
+        current_soil_moisture=None,
     )
     print(json.dumps(report_to_dict(report), ensure_ascii=False, indent=2))
     return 0
@@ -329,7 +318,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="irrigation-advisor",
-        description="Recomendacion de riego a partir de AEMET, suelo, cultivo y parcela.",
+        description="Recomendacion de riego a partir de AEMET, cultivo y superficie de parcela.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -377,13 +366,9 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--et0", type=float, required=True)
     compare.add_argument("--rain-mm", type=float, default=0.0)
     compare.add_argument("--stage", required=True, help="Fase comun: inicio, desarrollo, media, madurez.")
-    compare.add_argument("--soil", required=True, help="Tipo: arenoso, franco_arenoso, franco, franco_arcilloso, arcilloso.")
     compare.add_argument("--area-m2", type=float, required=True, help="Superficie de la parcela en m2.")
-    compare.add_argument("--field-capacity", type=float)
-    compare.add_argument("--wilting-point", type=float)
     compare.add_argument("--irrigation-efficiency", type=float, default=0.90)
     compare.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
-    compare.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
     compare.add_argument("--output", choices=["json", "markdown"], default="json")
 
     export = subparsers.add_parser("export-comparison", help="Exporta la comparativa de cultivos a CSV o JSON.")
@@ -391,13 +376,9 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--et0", type=float, required=True)
     export.add_argument("--rain-mm", type=float, default=0.0)
     export.add_argument("--stage", required=True, help="Fase comun: inicio, desarrollo, media, madurez.")
-    export.add_argument("--soil", required=True, help="Tipo: arenoso, franco_arenoso, franco, franco_arcilloso, arcilloso.")
     export.add_argument("--area-m2", type=float, required=True, help="Superficie de la parcela en m2.")
-    export.add_argument("--field-capacity", type=float)
-    export.add_argument("--wilting-point", type=float)
     export.add_argument("--irrigation-efficiency", type=float, default=0.90)
     export.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
-    export.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
     export.add_argument("--output-file", default="data/resultados/comparativa_riego.csv")
     export.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
 
@@ -413,19 +394,15 @@ def build_parser() -> argparse.ArgumentParser:
     export_aemet.add_argument("--latitude", type=float, help="Latitud decimal si AEMET no aporta ET0.")
     export_aemet.add_argument("--cache-db", help="Lee los datos climaticos desde la cache SQLite en vez de llamar a AEMET.")
     export_aemet.add_argument("--stage", required=True, help="Fase comun: inicio, desarrollo, media, madurez.")
-    export_aemet.add_argument("--soil", required=True, help="Tipo: arenoso, franco_arenoso, franco, franco_arcilloso, arcilloso.")
     export_aemet.add_argument("--area-m2", type=float, required=True, help="Superficie de la parcela en m2.")
-    export_aemet.add_argument("--field-capacity", type=float)
-    export_aemet.add_argument("--wilting-point", type=float)
     export_aemet.add_argument("--irrigation-efficiency", type=float, default=0.90)
     export_aemet.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
-    export_aemet.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
     export_aemet.add_argument("--output-file", default="data/resultados/comparativa_aemet.csv")
     export_aemet.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
 
     ml_dataset = subparsers.add_parser(
         "build-ml-dataset",
-        help="Construye un dataset historico ML cruzando estaciones AEMET, cultivos, fases y suelos.",
+        help="Construye un dataset historico ML cruzando estaciones AEMET, cultivos y fases.",
     )
     ml_dataset.add_argument("--station", action="append", help="Indicativo AEMET. Puede repetirse.")
     ml_dataset.add_argument("--province", help="Provincia para filtrar estaciones, por ejemplo SEVILLA.")
@@ -442,18 +419,9 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["inicio", "desarrollo", "media", "madurez"],
         help="Fase fenologica. Puede repetirse. Si se omite, usa todas.",
     )
-    ml_dataset.add_argument(
-        "--soil",
-        action="append",
-        choices=sorted(SOIL_DEFAULTS),
-        help="Tipo de suelo. Puede repetirse. Si se omite, usa franco.",
-    )
     ml_dataset.add_argument("--area-m2", type=float, default=10000.0, help="Superficie base de simulacion.")
-    ml_dataset.add_argument("--field-capacity", type=float)
-    ml_dataset.add_argument("--wilting-point", type=float)
     ml_dataset.add_argument("--irrigation-efficiency", type=float, default=0.90)
     ml_dataset.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
-    ml_dataset.add_argument("--current-soil-moisture", type=float)
     ml_dataset.add_argument("--output-file", default="data/resultados/dataset_ml_aemet.csv")
     ml_dataset.add_argument("--file-format", choices=["csv", "json"], help="Si se omite, se infiere por extension.")
     ml_dataset.add_argument("--strict", action="store_true", help="Detiene el proceso si una estacion falla.")
@@ -509,15 +477,9 @@ def build_parser() -> argparse.ArgumentParser:
 def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--crop", required=True, help="Cultivo: olivar, citricos, almendro...")
     parser.add_argument("--stage", required=True, help="Fase: inicio, desarrollo, media, madurez.")
-    parser.add_argument("--soil", required=True, help="Tipo: arenoso, franco_arenoso, franco, franco_arcilloso, arcilloso.")
     parser.add_argument("--area-m2", type=float, required=True, help="Superficie de la parcela en m2.")
-    parser.add_argument("--root-depth-m", type=float, help="Sobrescribe la profundidad de raices del cultivo.")
-    parser.add_argument("--field-capacity", type=float)
-    parser.add_argument("--wilting-point", type=float)
-    parser.add_argument("--max-depletion-fraction", type=float, help="Sobrescribe la fraccion de agotamiento del cultivo.")
     parser.add_argument("--irrigation-efficiency", type=float, default=0.90)
     parser.add_argument("--effective-rainfall-ratio", type=float, default=0.80)
-    parser.add_argument("--current-soil-moisture", type=float, help="Humedad volumetrica actual, por ejemplo 0.18.")
     parser.add_argument("--plant-spacing-m2", type=float, help="Sobrescribe la superficie asignada por planta.")
     parser.add_argument("--kc", type=float, help="Sobrescribe el Kc por defecto.")
 
@@ -527,7 +489,6 @@ def build_ml_dataset_from_aemet(args: argparse.Namespace) -> dict:
     end = date.fromisoformat(args.end)
     crop_names = args.crop or list(CROP_DEFAULTS)
     stages = args.stage or ["inicio", "desarrollo", "media", "madurez"]
-    soils = args.soil or ["franco"]
     rows: list[dict] = []
     errors: list[dict] = []
 
@@ -570,33 +531,27 @@ def build_ml_dataset_from_aemet(args: argparse.Namespace) -> dict:
                 )
 
     for weather_days, station_id, station_name, province in weather_sources:
-        for soil_name in soils:
-            for stage in stages:
-                scenario_args = SimpleNamespace(
-                    stage=stage,
-                    soil=soil_name,
-                    field_capacity=args.field_capacity,
-                    wilting_point=args.wilting_point,
-                    area_m2=args.area_m2,
-                    irrigation_efficiency=args.irrigation_efficiency,
+        for stage in stages:
+            scenario_args = SimpleNamespace(
+                stage=stage,
+                area_m2=args.area_m2,
+                irrigation_efficiency=args.irrigation_efficiency,
+                effective_rainfall_ratio=args.effective_rainfall_ratio,
+            )
+            reports = compare_crop_reports(
+                args=scenario_args,
+                weather_days=weather_days,
+                crop_names=crop_names,
+            )
+            rows.extend(
+                reports_to_daily_export_rows(
+                    reports=reports,
+                    station_id=station_id,
+                    station_name=station_name,
+                    province=province,
                     effective_rainfall_ratio=args.effective_rainfall_ratio,
-                    current_soil_moisture=args.current_soil_moisture,
                 )
-                reports = compare_crop_reports(
-                    args=scenario_args,
-                    weather_days=weather_days,
-                    crop_names=crop_names,
-                )
-                rows.extend(
-                    reports_to_daily_export_rows(
-                        reports=reports,
-                        soil_name=soil_name,
-                        station_id=station_id,
-                        station_name=station_name,
-                        province=province,
-                        effective_rainfall_ratio=args.effective_rainfall_ratio,
-                    )
-                )
+            )
 
     if not rows:
         raise ValueError("No se pudo generar ningun dato para el dataset ML")
@@ -611,7 +566,6 @@ def build_ml_dataset_from_aemet(args: argparse.Namespace) -> dict:
         "rows": len(rows),
         "crops": crop_names,
         "stages": stages,
-        "soils": soils,
         "errors": errors,
     }
     if args.train_model_dir:
@@ -955,17 +909,7 @@ def report_to_dict(report: IrrigationReport) -> dict:
             "name": report.crop.name,
             "stage": report.crop.stage,
             "kc": round(report.crop.kc, 3),
-            "default_root_depth_m": report.crop.root_depth_m,
             "default_plant_spacing_m2": report.crop.plant_spacing_m2,
-            "default_max_depletion_fraction": report.crop.max_depletion_fraction,
-        },
-        "soil": {
-            "name": report.soil.name,
-            "field_capacity": report.soil.field_capacity,
-            "wilting_point": report.soil.wilting_point,
-            "root_depth_m": report.soil.root_depth_m,
-            "total_available_water_mm": round(report.soil.total_available_water_mm, 2),
-            "readily_available_water_mm": round(report.soil.readily_available_water_mm, 2),
         },
         "system": {
             "area_m2": report.system.area_m2,
@@ -973,9 +917,6 @@ def report_to_dict(report: IrrigationReport) -> dict:
             "plant_spacing_m2": report.system.plant_spacing_m2,
             "plants": round(report.system.plants, 2) if report.system.plants else None,
         },
-        "first_irrigation_mm": round(report.first_irrigation_mm, 2)
-        if report.first_irrigation_mm is not None
-        else None,
         "total_gross_irrigation_mm": round(report.total_gross_irrigation_mm, 2),
         "total_liters": round(report.total_liters, 2),
         "days": [
@@ -1010,10 +951,8 @@ def compare_crop_reports(
     for crop_name in crop_names or list(CROP_DEFAULTS):
         crop = build_crop_profile(crop=crop_name, stage=args.stage)
         soil = build_soil_profile(
-            soil=args.soil,
+            soil=DEFAULT_TECHNICAL_SOIL,
             root_depth_m=crop.root_depth_m,
-            field_capacity=args.field_capacity,
-            wilting_point=args.wilting_point,
             max_depletion_fraction=crop.max_depletion_fraction,
         )
         system = IrrigationSystem(
@@ -1028,7 +967,7 @@ def compare_crop_reports(
                 soil=soil,
                 system=system,
                 effective_rainfall_ratio=args.effective_rainfall_ratio,
-                current_soil_moisture=args.current_soil_moisture,
+                current_soil_moisture=None,
             )
         )
     return reports
@@ -1036,18 +975,10 @@ def compare_crop_reports(
 
 def build_single_crop_report(args: argparse.Namespace, weather_days: list[WeatherDay]) -> IrrigationReport:
     crop = build_crop_profile(crop=args.crop, stage=args.stage, kc=args.kc)
-    root_depth_m = args.root_depth_m if args.root_depth_m is not None else crop.root_depth_m
-    max_depletion_fraction = (
-        args.max_depletion_fraction
-        if args.max_depletion_fraction is not None
-        else crop.max_depletion_fraction
-    )
     soil = build_soil_profile(
-        soil=args.soil,
-        root_depth_m=root_depth_m,
-        field_capacity=args.field_capacity,
-        wilting_point=args.wilting_point,
-        max_depletion_fraction=max_depletion_fraction,
+        soil=DEFAULT_TECHNICAL_SOIL,
+        root_depth_m=crop.root_depth_m,
+        max_depletion_fraction=crop.max_depletion_fraction,
     )
     plant_spacing_m2 = (
         args.plant_spacing_m2
@@ -1065,7 +996,7 @@ def build_single_crop_report(args: argparse.Namespace, weather_days: list[Weathe
         soil=soil,
         system=system,
         effective_rainfall_ratio=args.effective_rainfall_ratio,
-        current_soil_moisture=args.current_soil_moisture,
+        current_soil_moisture=None,
     )
 
 
@@ -1157,7 +1088,6 @@ def recommendation_to_dict(
         "plot": {
             "crop": report.crop.name,
             "stage": report.crop.stage,
-            "soil": report.soil.name,
             "area_m2": report.system.area_m2,
             "area_ha": round(report.system.area_m2 / 10000, 4),
             "plants_estimated": round(report.system.plants, 2) if report.system.plants else None,
@@ -1177,9 +1107,6 @@ def recommendation_to_dict(
             "avg_liters_plant_day": round(sum(daily_liters_per_plant) / len(daily_liters_per_plant), 2)
             if daily_liters_per_plant
             else None,
-            "first_irrigation_mm": round(report.first_irrigation_mm, 2)
-            if report.first_irrigation_mm is not None
-            else None,
         },
         "daily": [
             {
@@ -1197,7 +1124,7 @@ def recommendation_to_dict(
         ],
         "method": {
             "formula": "ETc = ET0 * Kc; riego_bruto = max(0, ETc - lluvia_efectiva) / eficiencia",
-            "note": "Estimacion agronomica basada en AEMET y parametros de parcela; requiere calibracion con sensores para operacion real.",
+            "note": "Estimacion agronomica basada en AEMET y parametros de parcela; requiere validacion de campo para operacion real.",
         },
     }
 
@@ -1216,7 +1143,6 @@ def recommendation_to_markdown(recommendation: dict) -> str:
         f"- Estacion AEMET: {location['station']} - {location['station_name'] or 'N/D'} ({location['province'] or 'N/D'})",
         f"- Periodo climatico: {period['start']} a {period['end']} ({period['days']} dias)",
         f"- Cultivo: {plot['crop']} ({plot['stage']})",
-        f"- Suelo: {plot['soil']}",
         f"- Superficie: {plot['area_m2']:.2f} m2 ({plot['area_ha']:.4f} ha)",
     ]
     if plot["plants_estimated"] is not None:
@@ -1372,7 +1298,6 @@ def build_comparison_from_args(args: argparse.Namespace) -> dict:
         date_value=args.date,
         et0_mm=args.et0,
         rain_mm=args.rain_mm,
-        soil_name=args.soil,
         stage=args.stage,
         area_m2=args.area_m2,
         irrigation_efficiency=args.irrigation_efficiency,
@@ -1385,7 +1310,6 @@ def comparison_to_dict(
     date_value: str,
     et0_mm: float,
     rain_mm: float,
-    soil_name: str,
     stage: str,
     area_m2: float,
     irrigation_efficiency: float,
@@ -1400,7 +1324,6 @@ def comparison_to_dict(
             "date": date_value,
             "et0_mm": et0_mm,
             "rain_mm": rain_mm,
-            "soil": soil_name,
             "stage": stage,
             "area_m2": area_m2,
             "irrigation_efficiency": irrigation_efficiency,
@@ -1425,9 +1348,7 @@ def comparison_row(report: IrrigationReport) -> dict:
         "crop": report.crop.name,
         "stage": report.crop.stage,
         "kc": round(report.crop.kc, 3),
-        "root_depth_m": report.crop.root_depth_m,
         "plant_spacing_m2": report.crop.plant_spacing_m2,
-        "readily_available_water_mm": round(report.soil.readily_available_water_mm, 2),
         "etc_mm": round(first_day.etc_mm, 2),
         "gross_irrigation_mm": round(first_day.gross_irrigation_mm, 2),
         "total_gross_irrigation_mm": round(report.total_gross_irrigation_mm, 2),
@@ -1440,17 +1361,16 @@ def comparison_row(report: IrrigationReport) -> dict:
 
 def comparison_to_markdown(comparison: dict) -> str:
     lines = [
-        "| Cultivo | Kc | Raices (m) | Marco (m2/planta) | ETc (mm) | Riego bruto (mm) | Litros totales | L/planta |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "| Cultivo | Kc | Marco (m2/planta) | ETc (mm) | Riego bruto (mm) | Litros totales | L/planta |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for row in comparison["crops"]:
         lines.append(
-            "| {crop} | {kc:.3f} | {root_depth_m:.2f} | {plant_spacing_m2:.2f} | "
+            "| {crop} | {kc:.3f} | {plant_spacing_m2:.2f} | "
             "{etc_mm:.2f} | {gross_irrigation_mm:.2f} | {total_liters:.2f} | "
             "{liters_per_plant} |".format(
                 crop=row["crop"],
                 kc=row["kc"],
-                root_depth_m=row["root_depth_m"],
                 plant_spacing_m2=row["plant_spacing_m2"],
                 etc_mm=row["etc_mm"],
                 gross_irrigation_mm=row["gross_irrigation_mm"],
@@ -1495,7 +1415,6 @@ def comparison_to_export_rows(comparison: dict) -> list[dict]:
                 "provincia": None,
                 "cultivo": row["crop"],
                 "fase": row["stage"],
-                "suelo": scenario["soil"],
                 "superficie_m2": scenario["area_m2"],
                 "eficiencia_riego": scenario["irrigation_efficiency"],
                 "lluvia_efectiva_ratio": scenario["effective_rainfall_ratio"],
@@ -1505,9 +1424,7 @@ def comparison_to_export_rows(comparison: dict) -> list[dict]:
                 "tmax_c": None,
                 "tmedia_c": None,
                 "kc": row["kc"],
-                "profundidad_raices_m": row["root_depth_m"],
                 "marco_m2_por_planta": row["plant_spacing_m2"],
-                "agua_facilmente_disponible_mm": row["readily_available_water_mm"],
                 "etc_mm": row["etc_mm"],
                 "riego_bruto_mm": row["gross_irrigation_mm"],
                 "litros_totales": row["total_liters"],
@@ -1520,7 +1437,6 @@ def comparison_to_export_rows(comparison: dict) -> list[dict]:
 
 def reports_to_daily_export_rows(
     reports: list[IrrigationReport],
-    soil_name: str,
     station_id: str,
     station_name: str | None,
     province: str | None,
@@ -1542,7 +1458,6 @@ def reports_to_daily_export_rows(
                     "provincia": province,
                     "cultivo": report.crop.name,
                     "fase": report.crop.stage,
-                    "suelo": soil_name,
                     "superficie_m2": report.system.area_m2,
                     "eficiencia_riego": report.system.efficiency,
                     "lluvia_efectiva_ratio": effective_rainfall_ratio,
@@ -1552,9 +1467,7 @@ def reports_to_daily_export_rows(
                     "tmax_c": round(day.tmax_c, 2) if day.tmax_c is not None else None,
                     "tmedia_c": round(day.tmean_c, 2) if day.tmean_c is not None else None,
                     "kc": round(report.crop.kc, 3),
-                    "profundidad_raices_m": report.crop.root_depth_m,
                     "marco_m2_por_planta": report.crop.plant_spacing_m2,
-                    "agua_facilmente_disponible_mm": round(report.soil.readily_available_water_mm, 2),
                     "etc_mm": round(day.etc_mm, 2),
                     "riego_bruto_mm": round(day.gross_irrigation_mm, 2),
                     "litros_totales": round(day.liters_total, 2),
@@ -1638,7 +1551,6 @@ def summarize_export_rows(rows: list[dict]) -> list[dict]:
                 "fecha_fin": dates[-1] if dates else None,
                 "cultivo": crop,
                 "fase": first_value(crop_rows, "fase"),
-                "suelo": first_value(crop_rows, "suelo"),
                 "dias_analizados": days,
                 "et0_media_mm": round(average(crop_rows, "et0_mm"), 2),
                 "lluvia_total_mm": round(sum(to_float(row.get("lluvia_mm")) for row in crop_rows), 2),
@@ -1759,9 +1671,7 @@ def optional_float(value: object) -> float | None:
 def crop_defaults_to_dict() -> dict:
     return {
         crop_name: {
-            "root_depth_m": crop_data["root_depth_m"],
             "plant_spacing_m2": crop_data["plant_spacing_m2"],
-            "max_depletion_fraction": crop_data["max_depletion_fraction"],
             "kc": crop_data["kc"],
         }
         for crop_name, crop_data in CROP_DEFAULTS.items()

@@ -9,12 +9,11 @@ python -m irrigation_advisor.cli export-comparison `
   --et0 5.6 `
   --rain-mm 0 `
   --stage media `
-  --soil franco `
   --area-m2 10000 `
   --output-file data/resultados/comparativa_riego.csv
 ```
 
-Los archivos CSV/JSON resultantes sirven como entrada inicial para resultados, dashboard y futura ingesta en BigQuery.
+Los archivos CSV/JSON resultantes sirven como entrada inicial para resultados, dashboard y analisis posteriores.
 
 Para generar un informe de recomendacion para un cliente:
 
@@ -26,7 +25,6 @@ python -m irrigation_advisor.cli recommend `
   --end 2024-05-07 `
   --crop olivar `
   --stage media `
-  --soil franco `
   --area-m2 3500 `
   --output-file data/resultados/recomendacion_cliente_olivar.md
 ```
@@ -42,7 +40,6 @@ python -m irrigation_advisor.cli recommend `
   --weather-file data/resultados/comparativa_aemet_sevilla.csv `
   --crop olivar `
   --stage media `
-  --soil franco `
   --area-m2 3500 `
   --output-file data/resultados/recomendacion_cliente_olivar.md
 ```
@@ -56,7 +53,6 @@ python -m irrigation_advisor.cli export-aemet-comparison `
   --start 2024-05-01 `
   --end 2024-05-07 `
   --stage media `
-  --soil franco `
   --area-m2 10000 `
   --output-file data/resultados/comparativa_aemet_sevilla.csv
 ```
@@ -78,8 +74,6 @@ python -m irrigation_advisor.cli build-ml-dataset `
   --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
-  --soil franco `
-  --soil franco_arcilloso `
   --output-file data/resultados/dataset_ml_aemet.csv `
   --train-model-dir models/riego_predictivo
 ```

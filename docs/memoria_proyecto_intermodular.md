@@ -1,6 +1,6 @@
 # Proyecto Intermodular
 
-## Sistema predictivo de recomendación de riego basado en AEMET, IoT y Machine Learning
+## Sistema predictivo de recomendación de riego basado en AEMET y Machine Learning
 
 **Alumno:** Roman Maeztu  
 **Proyecto:** Agricultura de precisión aplicada a la gestión hídrica  
@@ -32,7 +32,6 @@ La solución se ha planteado como un servicio predictivo configurable. El usuari
 - Zona o estación AEMET.
 - Fechas de análisis.
 - Cultivo.
-- Tipo de suelo.
 - Superficie de la parcela.
 
 Con esa información, el sistema calcula litros totales, litros por planta y lámina de riego en milímetros. Además, permite comparar varios cultivos para observar cómo cambia la demanda hídrica en función de sus parámetros agronómicos.
@@ -68,30 +67,30 @@ Los objetivos específicos se plantean como una escalera: cada escalón permite 
 
 | Escalón | Objetivo específico | Resultado esperado |
 |---:|---|---|
-| 1 | Diseñar una estructura de captación de datos climáticos y agronómicos. | Definición de variables meteorológicas, edáficas, fisiológicas y de parcela. |
+| 1 | Diseñar una estructura de captación de datos climáticos y agronómicos. | Definición de variables meteorológicas, de cultivo y de parcela. |
 | 2 | Conectar el sistema con datos oficiales de AEMET. | Consulta de estaciones, descarga de datos diarios y transformación a formato utilizable. |
 | 3 | Implementar el cálculo agronómico de riego. | Cálculo de ETc, lluvia efectiva, riego neto, riego bruto y litros. |
 | 4 | Incorporar varios cultivos configurables. | Comparación entre olivar, cítricos y almendro. |
 | 5 | Crear una capa predictiva con Machine Learning. | Entrenamiento de un modelo Keras/TensorFlow para predecir riego bruto. |
-| 6 | Desarrollar una interfaz de usuario. | Aplicación Streamlit con selección de estación, cultivo, suelo y parcela. |
-| 7 | Preparar el proyecto para almacenamiento masivo. | Estructura de datos compatible con BigQuery para futura explotación cloud. |
+| 6 | Desarrollar una interfaz de usuario. | Aplicación Streamlit con selección de estación, fechas, cultivo y superficie. |
+| 7 | Preparar el proyecto para exportación analítica local. | Dataset CSV/JSON documentado para revisión y análisis posterior. |
 
 ### 1.5 Alcance del proyecto
 
 El proyecto se centra en un prototipo funcional. La versión desarrollada permite trabajar con estaciones AEMET de España, con especial validación sobre datos de la estación Sevilla Aeropuerto. La solución no sustituye una auditoría agronómica profesional, pero sí ofrece una base técnica para construir un servicio de recomendación y predicción de riego.
 
-La principal limitación actual es que el modelo de Machine Learning se ha entrenado con datos históricos y etiquetas generadas a partir del cálculo agronómico. Para una operación comercial real, el siguiente paso sería calibrar el sistema con sensores IoT instalados en campo y datos reales de humedad del suelo, producción y riego aplicado.
+La principal limitación actual es que el modelo de Machine Learning se ha entrenado con datos históricos y etiquetas generadas a partir del cálculo agronómico. Para una operación comercial real, el siguiente paso sería calibrar el sistema con datos reales de riego aplicado, producción y validación de campo.
 
 ## 2. Marco teórico
 
 ### 2.1 Agricultura de precisión
 
-La agricultura de precisión consiste en utilizar datos, sensores y herramientas digitales para tomar decisiones más ajustadas a las condiciones reales de una parcela. En el caso del riego, esta aproximación permite pasar de calendarios generales a recomendaciones basadas en clima, suelo, cultivo y estado hídrico.
+La agricultura de precisión consiste en utilizar datos y herramientas digitales para tomar decisiones más ajustadas a las condiciones reales de una parcela. En el caso del riego, esta aproximación permite pasar de calendarios generales a recomendaciones basadas en clima, cultivo y superficie.
 
 En este proyecto, la agricultura de precisión se concreta en cuatro capas:
 
-- Captación de datos: estaciones AEMET y futura red de sensores IoT.
-- Almacenamiento: CSV local y estructura preparada para BigQuery.
+- Captación de datos: estaciones AEMET.
+- Almacenamiento: CSV/JSON local y estructura exportable.
 - Análisis: cálculo agronómico y modelo predictivo.
 - Visualización: interfaz web y reportes exportables.
 
@@ -122,47 +121,36 @@ Cuando AEMET no proporciona ET0 directamente, el prototipo estima ET0 mediante H
 ET0 = 0,0023 * (Tmedia + 17,8) * sqrt(Tmax - Tmin) * Ra
 ```
 
-### 2.4 Suelo y agua disponible
+### 2.4 Parámetros auxiliares de suelo
 
-El tipo de suelo condiciona cuánta agua puede retener la parcela. El proyecto utiliza cinco perfiles edáficos:
+El cálculo principal de la aplicación no pide al usuario el tipo de suelo ni la humedad inicial. La dosis diaria se obtiene con ET0, Kc, lluvia efectiva, superficie y eficiencia de riego.
 
-| Suelo | Capacidad de campo | Punto de marchitez |
-|---|---:|---:|
-| Arenoso | 0,10 | 0,05 |
-| Franco arenoso | 0,15 | 0,07 |
-| Franco | 0,25 | 0,12 |
-| Franco arcilloso | 0,31 | 0,16 |
-| Arcilloso | 0,37 | 0,22 |
-
-Estos valores permiten estimar el agua disponible en el perfil radicular:
-
-```text
-Agua disponible total = (capacidad de campo - punto de marchitez) * profundidad radicular * 1000
-```
+El código conserva un perfil técnico interno por compatibilidad del motor, pero no se expone en la interfaz ni en los comandos principales. En la memoria y en los resultados no se usa como variable de decisión del servicio.
 
 ### 2.5 Cultivos seleccionados
 
 El proyecto trabaja con tres cultivos configurables:
 
-| Cultivo | Profundidad radicular | Marco estimado | Agotamiento máximo | Kc en fase media |
-|---|---:|---:|---:|---:|
-| Olivar | 0,60 m | 8 m2/planta | 0,50 | 0,70 |
-| Cítricos | 0,70 m | 20 m2/planta | 0,45 | 0,75 |
-| Almendro | 0,80 m | 30 m2/planta | 0,55 | 0,90 |
+| Cultivo | Marco estimado | Kc en fase media |
+|---|---:|---:|
+| Olivar | 8 m2/planta | 0,70 |
+| Cítricos | 20 m2/planta | 0,75 |
+| Almendro | 30 m2/planta | 0,90 |
 
 La elección de estos cultivos permite comparar demandas hídricas diferentes dentro de un contexto agrícola mediterráneo.
 
 ### 2.6 Big Data y BigQuery
 
-El proyecto está preparado para evolucionar desde archivos CSV locales hacia una infraestructura de almacenamiento masivo. Google BigQuery es un almacén de datos gestionado orientado al análisis de grandes volúmenes de información [4].
+El proyecto no despliega BigQuery. Lo que sí entrega es una estructura de datos exportable en CSV/JSON que podría cargarse en una herramienta analítica posterior. Google BigQuery se mantiene como referencia tecnológica para una futura versión cloud, ya que es un almacén de datos gestionado orientado al análisis de grandes volúmenes de información [4].
 
-En el contexto del proyecto, BigQuery tendría tres funciones:
+| Elemento | Estado en el proyecto |
+|---|---|
+| Exportación CSV/JSON | Implementada. |
+| Estructura tabular compatible con análisis posterior | Implementada. |
+| Creación de dataset/tablas en BigQuery | No implementada. |
+| Ingesta automática en Google Cloud | No implementada. |
 
-- Centralizar históricos meteorológicos de AEMET.
-- Almacenar lecturas IoT de humedad, temperatura y conductividad eléctrica.
-- Servir como base para consultas analíticas y entrenamiento de modelos.
-
-La versión actual define la estructura de columnas y el flujo ETL, pero la conexión efectiva con BigQuery queda como despliegue cloud posterior.
+Por tanto, BigQuery queda cerrado como alcance preparado pero no desplegado. En la entrega actual no se afirma que exista una infraestructura cloud funcionando.
 
 ### 2.7 Machine Learning, TensorFlow y Keras
 
@@ -189,7 +177,7 @@ Streamlit es un framework de Python orientado a crear aplicaciones web de datos 
 
 - Selección de fuente de datos.
 - Selección nacional de estación AEMET.
-- Configuración de cultivo, suelo y parcela.
+- Configuración de cultivo, fechas y superficie.
 - Visualización de resultados.
 - Activación opcional del modelo ML.
 
@@ -204,7 +192,7 @@ El uso de IA en un sistema de recomendación agrícola debe tratarse como una he
 Aplicado a este proyecto, esto implica cuatro criterios:
 
 - Explicar de forma clara cómo se calcula la recomendación de riego.
-- No presentar la predicción ML como verdad de campo si no está calibrada con sensores reales.
+- No presentar la predicción ML como verdad de campo sin validación agronómica real.
 - No publicar claves API ni datos privados de parcelas o usuarios.
 - Mantener intervención humana en la decisión final de riego.
 
@@ -228,7 +216,7 @@ El desarrollo se ha organizado en los siguientes bloques:
 
 | Bloque | Trabajo realizado | Relación con objetivos |
 |---|---|---|
-| 1 | Modelado de cultivos, suelos y parcela. | Base agronómica del proyecto. |
+| 1 | Modelado de cultivos y parcela. | Base agronómica del proyecto. |
 | 2 | Cálculo de riego trazable. | Conversión de clima y parcela en recomendación. |
 | 3 | Conexión con AEMET. | Uso de datos oficiales por estación y fechas. |
 | 4 | Exportación y resumen de resultados. | Generación de datos defendibles. |
@@ -248,7 +236,7 @@ El desarrollo se ha organizado en los siguientes bloques:
 | TensorFlow/Keras | Entrenamiento de la red neuronal. |
 | CSV/JSON/Markdown | Exportación de datasets e informes. |
 | unittest | Validación automática del código. |
-| BigQuery | Capa prevista para almacenamiento masivo. |
+| BigQuery | Referencia teórica cerrada como no desplegada en el prototipo. |
 
 ### 3.4 Arquitectura propuesta
 
@@ -264,8 +252,6 @@ flowchart LR
     G --> I["Recomendación de riego"]
     H --> I
     I --> J["Informe y dashboard"]
-    F -. futuro .-> K["BigQuery"]
-    L["Sensores IoT"] -. futuro .-> K
 ```
 
 ### 3.5 Proceso ETL con AEMET
@@ -275,7 +261,7 @@ El proceso ETL se ha definido en cuatro pasos:
 1. **Extracción:** petición GET a AEMET OpenData utilizando una API Key almacenada fuera del código fuente.
 2. **Descubrimiento de datos:** lectura de la URL temporal de descarga devuelta por AEMET.
 3. **Transformación:** conversión de fechas, precipitación y temperaturas a tipos numéricos homogéneos.
-4. **Carga:** generación de un dataset estructurado en CSV y preparación para futura ingesta en BigQuery.
+4. **Carga:** generación de un dataset estructurado en CSV/JSON para análisis local y entrenamiento del modelo.
 
 El sistema evita incluir credenciales en el repositorio. La API Key se gestiona mediante la variable de entorno `AEMET_API_KEY` o mediante un archivo `.env` local excluido de Git.
 
@@ -302,7 +288,6 @@ El entrenamiento se realiza a partir de un dataset que cruza:
 - Estación AEMET.
 - Cultivo.
 - Fase fenológica.
-- Tipo de suelo.
 - Superficie.
 - Variables climáticas.
 - Variables agronómicas.
@@ -342,7 +327,7 @@ litros_totales = riego_bruto * superficie_m2
 litros_por_planta = riego_bruto * marco_m2_por_planta
 ```
 
-El tipo de suelo y la humedad volumétrica inicial no forman parte del cálculo diario estándar. Solo se aplican si se activa la opción de calcular un primer riego hasta capacidad de campo. Por eso se consideran variables auxiliares, no variables principales del servicio.
+El perfil de suelo queda fuera del flujo principal. La decisión que recibe el cliente se basa en clima AEMET, cultivo, fase, superficie, lluvia efectiva y eficiencia de riego.
 
 ### 3.9 Trazabilidad entre objetivos, metodología y validación
 
@@ -350,13 +335,13 @@ Para mantener coherencia entre lo planteado en la introducción y lo entregado e
 
 | Escalón | Objetivo específico | Herramientas/datos | Desarrollo realizado | Validación |
 |---:|---|---|---|---|
-| 1 | Diseñar captación de datos climáticos y agronómicos. | Variables AEMET, suelo, cultivo y parcela. | Definición de modelos de datos y perfiles de cultivo. | Pruebas de perfiles y revisión de variables del dataset. |
+| 1 | Diseñar captación de datos climáticos y agronómicos. | Variables AEMET, cultivo y parcela. | Definición de modelos de datos y perfiles de cultivo. | Pruebas de perfiles y revisión de variables del dataset. |
 | 2 | Conectar con AEMET. | AEMET OpenData y cache local SQLite. | Cliente API, selector nacional de estaciones y ETL. | Descarga por estación/fecha y pruebas con cache. |
-| 3 | Implementar cálculo de riego. | ET0, Kc, lluvia efectiva, eficiencia y superficie. | Motor agronómico en Python. | Pruebas unitarias de riego, lluvia y primer riego. |
+| 3 | Implementar cálculo de riego. | ET0, Kc, lluvia efectiva, eficiencia y superficie. | Motor agronómico en Python. | Pruebas unitarias de riego y lluvia efectiva. |
 | 4 | Comparar cultivos. | Olivar, cítricos y almendro. | Comparativa diaria y resumen por cultivo. | Ranking de demanda y exportación CSV/JSON/Markdown. |
 | 5 | Crear capa ML. | Dataset AEMET + variables de cultivo/parcela. | Modelo Keras y alternativa lineal. | Métricas MAE, RMSE y R2. |
 | 6 | Crear interfaz. | Streamlit. | Formulario de cliente y visualización de resultados. | Prueba funcional en navegador local. |
-| 7 | Preparar Big Data. | Estructura compatible con BigQuery. | Columnas exportables y flujo ETL documentado. | Dataset tabular preparado para carga futura. |
+| 7 | Preparar exportación analítica. | CSV/JSON estructurado. | Columnas exportables y flujo ETL documentado. | Dataset tabular preparado para análisis posterior. |
 
 ### 3.10 Diagrama de Gantt
 
@@ -378,7 +363,7 @@ El siguiente Gantt resume la planificación por semanas. Se presenta como cronog
 | Semana | Actividad | Resultado |
 |---:|---|---|
 | 1 | Definición del problema y objetivos. | Alcance inicial del proyecto. |
-| 2 | Diseño de variables de cultivo, suelo y riego. | Perfiles de olivar, cítricos y almendro. |
+| 2 | Diseño de variables de cultivo y riego. | Perfiles de olivar, cítricos y almendro. |
 | 3 | Implementación del cálculo agronómico. | Motor de recomendación validado. |
 | 4 | Integración con AEMET OpenData. | Descarga de datos diarios por estación. |
 | 5 | Exportación de comparativas y resúmenes. | CSV y Markdown de resultados. |
@@ -388,7 +373,7 @@ El siguiente Gantt resume la planificación por semanas. Se presenta como cronog
 
 ### 3.12 ROI y viabilidad económica
 
-No se calcula un ROI monetario cerrado porque faltan datos reales de explotación: consumo histórico de riego tradicional, precio del agua, coste del servicio, coste de sensores y ahorro confirmado en campo. Para evitar estimaciones no justificadas, el proyecto deja definido el método de cálculo:
+No se calcula un ROI monetario cerrado porque faltan datos reales de explotación: consumo histórico de riego tradicional, precio del agua, coste del servicio y ahorro confirmado en campo. Para evitar estimaciones no justificadas, el proyecto deja definido el método de cálculo:
 
 ```text
 ahorro_agua_L = riego_tradicional_L - riego_recomendado_L
@@ -406,14 +391,9 @@ La aplicación ya ofrece la variable necesaria para alimentar este análisis: li
 | Horas de análisis y desarrollo | 80 h | 15 EUR/h | 1.200 EUR |
 | Equipo informático propio | 1 | 0 EUR | 0 EUR |
 | Software libre utilizado | 1 | 0 EUR | 0 EUR |
-| Prototipo IoT futuro: microcontroladores | 2 | 20 EUR | 40 EUR |
-| Sensores humedad/temperatura suelo | 3 | 25 EUR | 75 EUR |
-| Sensor conductividad eléctrica | 1 | 45 EUR | 45 EUR |
-| Comunicaciones y alimentación | 1 | 60 EUR | 60 EUR |
-| Uso inicial de cloud/BigQuery | 1 | 0-30 EUR | 30 EUR |
-| Total estimado |  |  | 1.450 EUR |
+| Total estimado |  |  | 1.200 EUR |
 
-El presupuesto distingue entre el prototipo software ya desarrollado y una posible instalación IoT en campo. Las herramientas principales utilizadas son gratuitas o de código abierto.
+El presupuesto corresponde al prototipo software desarrollado. No se incluyen sensores IoT ni costes cloud porque no forman parte del entregable implementado.
 
 ### 3.14 Gestión ética y licencia del proyecto
 
@@ -435,7 +415,7 @@ El proyecto ha conseguido implementar las siguientes funcionalidades:
 - Filtro de estaciones por provincia y nombre.
 - Descarga de datos diarios por estación y rango de fechas.
 - Cálculo de ET0 mediante Hargreaves-Samani cuando no se dispone de ET0 directa.
-- Configuración de cultivo, fase fenológica, suelo y parcela.
+- Configuración de cultivo, fase fenológica y superficie de parcela.
 - Comparación entre olivar, cítricos y almendro.
 - Exportación de resultados en CSV, JSON y Markdown.
 - Interfaz web con Streamlit.
@@ -450,7 +430,7 @@ El proyecto ha conseguido implementar las siguientes funcionalidades:
 | `app.py` | Interfaz web Streamlit. |
 | `irrigation_advisor/aemet_client.py` | Cliente de AEMET OpenData. |
 | `irrigation_advisor/calculator.py` | Motor de cálculo agronómico. |
-| `irrigation_advisor/models.py` | Modelos de datos, cultivos y suelos. |
+| `irrigation_advisor/models.py` | Modelos de datos y cultivos. |
 | `irrigation_advisor/ml.py` | Entrenamiento y predicción ML. |
 | `irrigation_advisor/cli.py` | Comandos de consola. |
 | `tests/test_calculator.py` | Pruebas unitarias. |
@@ -471,7 +451,7 @@ El resultado muestra que, bajo las mismas condiciones meteorológicas, el cultiv
 
 ### 4.4 Resultado orientado a cliente
 
-Para una parcela de 3.500 m2 de olivar en fase media, suelo franco, estación Sevilla Aeropuerto y periodo del 1 al 7 de mayo de 2024, el sistema generó:
+Para una parcela de 3.500 m2 de olivar en fase media, estación Sevilla Aeropuerto y periodo del 1 al 7 de mayo de 2024, el sistema generó:
 
 | Indicador | Resultado |
 |---|---:|
@@ -496,7 +476,7 @@ El modelo Keras se entrenó con un dataset de 168 filas y variables climáticas/
 | R2 | 0,9975 |
 | Filas de validación | 33 |
 
-El modelo supera el umbral del 85 % si se interpreta la precisión como R2 en un problema de regresión. No obstante, este dato debe presentarse con rigor: el modelo aprende a reproducir el cálculo agronómico sobre el dataset generado, no una verdad de campo medida con sensores.
+El modelo supera el umbral del 85 % si se interpreta la precisión como R2 en un problema de regresión. No obstante, este dato debe presentarse con rigor: el modelo aprende a reproducir el cálculo agronómico sobre el dataset generado, no una verdad de campo medida.
 
 ### 4.6 Comparación entre cálculo agronómico y ML
 
@@ -524,7 +504,6 @@ Las pruebas cubren:
 
 - Cálculo diario de riego.
 - Reducción por lluvia efectiva.
-- Primer riego hasta capacidad de campo.
 - Estimación ET0.
 - Perfiles de cultivos.
 - Exportación de comparativas.
@@ -534,12 +513,12 @@ Las pruebas cubren:
 
 ### 4.8 Capturas del sistema
 
-Las siguientes capturas corresponden a una ejecución real del prototipo. El escenario utilizado para documentar la prueba es: estación AEMET Sevilla Aeropuerto, periodo del 01/05/2024 al 07/05/2024, cultivo olivar, fase media, suelo franco, superficie de 3.500 m2 y modelo ML activado.
+Las siguientes capturas corresponden a una ejecución real del prototipo. El escenario utilizado para documentar la prueba es: estación AEMET Sevilla Aeropuerto, periodo del 01/05/2024 al 07/05/2024, cultivo olivar, fase media, superficie de 3.500 m2 y modelo ML activado.
 
 | Figura | Evidencia aportada |
 |---:|---|
 | Figura 1 | Selector nacional de estaciones AEMET mediante cache local. |
-| Figura 2 | Formulario principal de configuración de estación, fechas, cultivo, suelo y parcela. |
+| Figura 2 | Formulario principal de configuración de estación, fechas, cultivo y superficie. |
 | Figura 3 | Activación del modelo predictivo ML entrenado. |
 | Figura 4 | Resultados principales del cálculo agronómico de riego. |
 | Figura 5 | Predicción ML y comparación con el cálculo diario. |
@@ -583,13 +562,13 @@ Las siguientes capturas corresponden a una ejecución real del prototipo. El esc
 
 | Escalón | Objetivo específico | Estado | Evidencia |
 |---:|---|---|---|
-| 1 | Diseñar captación de datos climáticos y agronómicos. | Cumplido en prototipo | Variables AEMET, suelo, cultivo y parcela definidas. |
+| 1 | Diseñar captación de datos climáticos y agronómicos. | Cumplido en prototipo | Variables AEMET, cultivo y parcela definidas. |
 | 2 | Conectar el sistema con AEMET. | Cumplido | Cliente AEMET, inventario nacional, cache local y datos diarios por estación. |
 | 3 | Implementar cálculo agronómico de riego. | Cumplido | Motor de cálculo con ETc, lluvia efectiva, riego bruto y litros. |
-| 4 | Incorporar cultivos configurables. | Cumplido | Olivar, cítricos y almendro con Kc, raíz, marco y agotamiento propios. |
+| 4 | Incorporar cultivos configurables. | Cumplido | Olivar, cítricos y almendro con Kc y marco por planta propios. |
 | 5 | Crear capa predictiva ML. | Cumplido en prototipo | Modelo Keras/TensorFlow con R2 superior a 0,85 sobre validación interna. |
-| 6 | Desarrollar interfaz de usuario. | Cumplido | App Streamlit con estación, cultivo, suelo, parcela y ML opcional. |
-| 7 | Preparar almacenamiento masivo. | Parcial | Dataset exportable y estructura compatible; despliegue BigQuery pendiente. |
+| 6 | Desarrollar interfaz de usuario. | Cumplido | App Streamlit con estación, fechas, cultivo, superficie y ML opcional. |
+| 7 | Preparar exportación analítica. | Cumplido | Dataset CSV/JSON exportable; BigQuery queda fuera del despliegue. |
 
 ## 5. Conclusiones
 
@@ -605,15 +584,15 @@ Las conclusiones se ordenan siguiendo la misma escalera definida en la introducc
 
 | Escalón | Conclusión |
 |---:|---|
-| 1 | La estructura de datos climáticos, edáficos, fisiológicos y de parcela queda definida y preparada para ampliarse con sensores IoT. |
+| 1 | La estructura de datos climáticos, de cultivo y de parcela queda definida y alineada con el cálculo de riego. |
 | 2 | La conexión con AEMET permite trabajar con estaciones reales, datos diarios y un flujo ETL reproducible. |
 | 3 | El cálculo agronómico ofrece una recomendación defendible en litros, litros por planta y milímetros de riego. |
 | 4 | La comparación entre olivar, cítricos y almendro demuestra que el cultivo modifica de forma significativa la demanda hídrica. |
 | 5 | La capa ML/Keras queda integrada y validada como aproximación al cálculo agronómico, aunque requiere datos reales de campo para uso profesional. |
 | 6 | La interfaz Streamlit transforma el cálculo técnico en un servicio entendible para un cliente. |
-| 7 | La estructura exportable deja preparado el salto a BigQuery y a una arquitectura de análisis masivo. |
+| 7 | La estructura exportable permite revisar los datos, repetir pruebas y alimentar el entrenamiento ML sin depender de infraestructura cloud. |
 
-El objetivo general se alcanza a nivel de prototipo: el sistema analiza datos meteorológicos y agronómicos para optimizar la recomendación de riego. La validación comercial real queda condicionada a la incorporación de sensores, histórico de riego aplicado y contraste con parcelas reales.
+El objetivo general se alcanza a nivel de prototipo: el sistema analiza datos meteorológicos y agronómicos para optimizar la recomendación de riego. La validación comercial real queda condicionada a disponer de histórico de riego aplicado y contraste con parcelas reales.
 
 ### 5.3 Aprendizajes significativos
 
@@ -621,7 +600,7 @@ Durante el desarrollo se han trabajado varios aprendizajes:
 
 - Consumo de APIs reales con autenticación.
 - Limpieza y normalización de datos meteorológicos.
-- Modelado de cultivos, suelos y parcelas.
+- Modelado de cultivos y parcelas.
 - Conversión de milímetros de riego a litros totales y litros por planta.
 - Creación de una interfaz web con Streamlit.
 - Entrenamiento de una red neuronal con TensorFlow/Keras.
@@ -637,16 +616,15 @@ Las principales dificultades han sido:
 - Interpretar datos meteorológicos incompletos o con formatos distintos.
 - Diferenciar cálculo agronómico, predicción ML y validación real.
 - Convertir resultados técnicos en una salida útil para un cliente.
-- Evitar que el objetivo de Machine Learning se presente como precisión absoluta cuando todavía no hay sensores reales de campo.
+- Evitar que el objetivo de Machine Learning se presente como precisión absoluta cuando todavía no hay validación real de campo.
 - Plantear el ROI sin inventar datos económicos no medidos.
 
 ### 5.5 Mejoras futuras
 
 Las mejoras más importantes serían:
 
-- Incorporar sensores IoT reales de humedad del suelo, temperatura y conductividad eléctrica.
-- Guardar históricos en BigQuery.
-- Añadir NDVI mediante imágenes satelitales.
+- Integrar sensores IoT solo como mejora futura, si el servicio necesita datos de campo en tiempo real.
+- Desplegar BigQuery solo si el volumen de datos requiere una infraestructura cloud.
 - Entrenar el modelo con datos reales de riego aplicado y respuesta del cultivo.
 - Incorporar predicción meteorológica futura, no solo datos históricos.
 - Añadir gestión de usuarios y parcelas.
@@ -727,14 +705,13 @@ python -m irrigation_advisor.cli predict-ml `
   --end 2024-05-07 `
   --crop olivar `
   --stage media `
-  --soil franco `
   --area-m2 3500 `
   --output markdown
 ```
 
 ### Anexo B. Variables mínimas del cálculo
 
-El cálculo principal no necesita información hidráulica de goteros ni sensores no integrados. Las variables mínimas que explican el resultado son las siguientes:
+El cálculo principal no necesita información hidráulica de goteros ni variables no aplicadas. Las variables mínimas que explican el resultado son las siguientes:
 
 | Variable | Papel en el sistema |
 |---|---|
@@ -755,8 +732,8 @@ El cálculo principal no necesita información hidráulica de goteros ni sensore
 
 ### Anexo C. Límites técnicos actuales
 
-- El modelo no incorpora todavía sensores reales de humedad del suelo.
-- BigQuery está definido como arquitectura, pero no desplegado.
+- El modelo no incorpora todavía datos reales de riego aplicado en campo.
+- BigQuery queda definido como posible destino analítico, pero no desplegado.
 - Los coeficientes de cultivo son valores de referencia y deben calibrarse por variedad, manejo y fase real.
 - La predicción usa históricos y cálculo agronómico como base; para operación comercial debe validarse en campo.
 
@@ -767,13 +744,13 @@ El Product Backlog recoge las funcionalidades necesarias para alcanzar el objeti
 | ID | Historia/tarea | Prioridad | Estado |
 |---|---|---|---|
 | PB-01 | Como usuario, quiero elegir una estación AEMET para trabajar con datos reales de mi zona. | Alta | Completado |
-| PB-02 | Como usuario, quiero introducir cultivo, fase, suelo y superficie para adaptar el cálculo a mi parcela. | Alta | Completado |
+| PB-02 | Como usuario, quiero introducir cultivo, fase y superficie para adaptar el cálculo a mi parcela. | Alta | Completado |
 | PB-03 | Como usuario, quiero obtener litros totales, litros por planta y lámina de riego. | Alta | Completado |
 | PB-04 | Como usuario, quiero comparar olivar, cítricos y almendro bajo el mismo escenario. | Alta | Completado |
-| PB-05 | Como desarrollador, quiero exportar datasets CSV/JSON para análisis y BigQuery. | Media | Completado |
+| PB-05 | Como desarrollador, quiero exportar datasets CSV/JSON para análisis local y entrenamiento ML. | Media | Completado |
 | PB-06 | Como usuario, quiero activar una predicción ML entrenada con históricos. | Media | Completado |
 | PB-07 | Como usuario, quiero trabajar con cache local para no saturar AEMET. | Media | Completado |
-| PB-08 | Como responsable técnico, quiero integrar sensores IoT reales. | Alta | Pendiente |
+| PB-08 | Como responsable técnico, quiero estudiar una integración IoT futura. | Baja | Pendiente |
 | PB-09 | Como responsable del servicio, quiero calcular ROI con consumos y costes reales. | Media | Pendiente |
 | PB-10 | Como usuario final, quiero informes PDF comerciales. | Baja | Pendiente |
 
@@ -781,7 +758,7 @@ El Product Backlog recoge las funcionalidades necesarias para alcanzar el objeti
 
 | Sprint | Objetivo | Tareas principales | Entregable |
 |---|---|---|---|
-| Sprint 1 | Base agronómica | Definir cultivos, suelos, ET0, Kc y fórmula de riego. | Motor de cálculo inicial. |
+| Sprint 1 | Base agronómica | Definir cultivos, ET0, Kc y fórmula de riego. | Motor de cálculo inicial. |
 | Sprint 2 | Datos AEMET | Implementar cliente API, búsqueda de estaciones y ETL. | Datos diarios por estación. |
 | Sprint 3 | Comparativas | Añadir tres cultivos, exportaciones y resumen. | CSV/Markdown defendibles. |
 | Sprint 4 | Servicio cliente | Crear interfaz Streamlit y formulario de parcela. | App local funcional. |

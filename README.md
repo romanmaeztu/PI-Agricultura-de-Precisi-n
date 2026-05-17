@@ -1,6 +1,6 @@
 # Sistema de recomendacion de riego con AEMET
 
-Este MVP calcula cuanto regar una parcela a partir de datos climaticos de AEMET y parametros agronomicos del cultivo, suelo y sistema de riego. Es un primer escalon tecnico: antes de entrenar ML, el calculo debe ser trazable y defendible.
+Este MVP calcula cuanto regar una parcela a partir de datos climaticos de AEMET, el cultivo elegido y la superficie indicada por el cliente. Es un primer escalon tecnico: antes de vender una prediccion, el calculo debe ser trazable y defendible.
 
 ## Logica de calculo
 
@@ -32,12 +32,6 @@ dosis_bruta_mm = necesidad_neta_mm / eficiencia_riego
 litros_totales = dosis_bruta_mm * superficie_m2
 ```
 
-6. Si se indica humedad inicial del suelo, calcula tambien el primer riego para llevar el perfil hasta capacidad de campo:
-
-```text
-primer_riego_mm = (capacidad_campo - humedad_actual) * profundidad_raices_m * 1000 / eficiencia
-```
-
 ## Uso
 
 Copiar `.env.example` como `.env` o definir la variable de entorno:
@@ -62,11 +56,11 @@ python -m irrigation_advisor.cli crops
 
 Cada cultivo aplica automaticamente sus variables por defecto:
 
-| Cultivo | Profundidad raices | Marco por planta | Agotamiento maximo | Fases Kc |
-|---|---:|---:|---:|---|
-| `olivar` | 0.60 m | 8 m2 | 0.50 | inicio, desarrollo, media, madurez |
-| `citricos` | 0.70 m | 20 m2 | 0.45 | inicio, desarrollo, media, madurez |
-| `almendro` | 0.80 m | 30 m2 | 0.55 | inicio, desarrollo, media, madurez |
+| Cultivo | Marco por planta | Kc fase media | Fases disponibles |
+|---|---:|---:|---|
+| `olivar` | 8 m2 | 0.70 | inicio, desarrollo, media, madurez |
+| `citricos` | 20 m2 | 0.75 | inicio, desarrollo, media, madurez |
+| `almendro` | 30 m2 | 0.90 | inicio, desarrollo, media, madurez |
 
 ```powershell
 python -m irrigation_advisor.cli aemet `
@@ -75,7 +69,6 @@ python -m irrigation_advisor.cli aemet `
   --end 2024-05-07 `
   --crop olivar `
   --stage desarrollo `
-  --soil franco `
   --area-m2 10000 `
   --irrigation-efficiency 0.90
 ```
@@ -88,13 +81,12 @@ python -m irrigation_advisor.cli manual `
   --rain-mm 0 `
   --crop olivar `
   --stage desarrollo `
-  --soil franco `
   --area-m2 10000
 ```
 
 ## Servicio de recomendacion para cliente
 
-El flujo orientado a cliente parte de una estacion AEMET, periodo, cultivo, suelo y superficie. Devuelve un informe con litros totales, litros diarios, lamina de riego y litros por planta.
+El flujo orientado a cliente parte de una estacion AEMET, periodo, cultivo y superficie. Devuelve un informe con litros totales, litros diarios, lamina de riego y litros por planta.
 
 ```powershell
 python -m irrigation_advisor.cli recommend `
@@ -104,7 +96,6 @@ python -m irrigation_advisor.cli recommend `
   --end 2024-05-07 `
   --crop olivar `
   --stage media `
-  --soil franco `
   --area-m2 3500 `
   --output markdown `
   --output-file data/resultados/recomendacion_cliente_olivar.md
@@ -121,7 +112,6 @@ python -m irrigation_advisor.cli recommend `
   --weather-file data/resultados/comparativa_aemet_sevilla.csv `
   --crop olivar `
   --stage media `
-  --soil franco `
   --area-m2 3500 `
   --output-file data/resultados/recomendacion_cliente_olivar.md
 ```
@@ -148,15 +138,15 @@ Ejecutar la app:
 python -m streamlit run app.py
 ```
 
-La interfaz permite elegir cualquier estacion del inventario AEMET de Espana mediante filtro por provincia, ademas de cultivo, suelo y superficie. Puede trabajar con AEMET API, cache local o con un CSV climatico ya exportado.
+La interfaz permite elegir cualquier estacion del inventario AEMET de Espana mediante filtro por provincia, ademas de cultivo y superficie. Puede trabajar con AEMET API, cache local o con un CSV climatico ya exportado.
 
 ## Capa predictiva ML/Keras
 
-El proyecto ya incluye una capa predictiva entrenable. El objetivo del modelo es predecir `riego_bruto_mm` a partir de historicos AEMET exportados y variables de cultivo/parcela: estacion, provincia, fecha, ET0, lluvia, temperaturas, cultivo, fase, suelo, Kc, profundidad radicular, marco de plantacion y eficiencia. La superficie se aplica despues para convertir la lamina predicha a litros del cliente.
+El proyecto ya incluye una capa predictiva entrenable. El objetivo del modelo es predecir `riego_bruto_mm` a partir de historicos AEMET exportados y variables de cultivo/parcela: estacion, provincia, fecha, ET0, lluvia, temperaturas, cultivo, fase, Kc, marco de plantacion y eficiencia. La superficie se aplica despues para convertir la lamina predicha a litros del cliente.
 
 Las variables hidraulicas del reparto no forman parte del objetivo del servicio. La recomendacion se centra en la necesidad hidrica: milimetros de riego, litros totales y litros por planta.
 
-La capa agronomica sigue siendo la referencia trazable. La capa ML aprende sobre el historico generado/validado y permite ofrecer una prediccion como servicio. Cuando existan datos reales de sensores o decisiones de riego en campo, la misma estructura puede sustituir la variable objetivo por riego real aplicado o humedad objetivo alcanzada.
+La capa agronomica sigue siendo la referencia trazable. La capa ML aprende sobre el historico generado/validado y permite ofrecer una prediccion como servicio. Cuando existan datos reales de riego aplicado en campo, la misma estructura puede sustituir la variable objetivo por una variable medida.
 
 Instalar dependencias ML:
 
@@ -188,8 +178,6 @@ python -m irrigation_advisor.cli build-ml-dataset `
   --stage desarrollo `
   --stage media `
   --stage madurez `
-  --soil franco `
-  --soil franco_arcilloso `
   --area-m2 10000 `
   --output-file data/resultados/dataset_ml_aemet.csv
 ```
@@ -203,8 +191,6 @@ python -m irrigation_advisor.cli build-ml-dataset `
   --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
-  --soil franco `
-  --soil franco_arcilloso `
   --output-file data/resultados/dataset_ml_aemet.csv
 ```
 
@@ -216,8 +202,6 @@ python -m irrigation_advisor.cli build-ml-dataset `
   --station-name AEROPUERTO `
   --start 2024-03-01 `
   --end 2024-09-30 `
-  --soil franco `
-  --soil franco_arcilloso `
   --output-file data/resultados/dataset_ml_aemet.csv `
   --train-model-dir models/riego_predictivo `
   --backend auto
@@ -245,7 +229,6 @@ python -m irrigation_advisor.cli predict-ml `
   --end 2024-05-07 `
   --crop olivar `
   --stage media `
-  --soil franco `
   --area-m2 3500 `
   --output markdown
 ```
@@ -261,7 +244,6 @@ python -m irrigation_advisor.cli recommend `
   --end 2024-05-07 `
   --crop olivar `
   --stage media `
-  --soil franco `
   --area-m2 3500 `
   --ml-model-dir models/riego_predictivo
 ```
@@ -270,14 +252,13 @@ Si se usa el modelo TensorFlow/Keras entrenado, sustituir `models/riego_predicti
 
 ## Comparativa de cultivos
 
-Para comparar los tres cultivos con el mismo escenario climatico, suelo y superficie:
+Para comparar los tres cultivos con el mismo escenario climatico y superficie:
 
 ```powershell
 python -m irrigation_advisor.cli compare `
   --et0 5.6 `
   --rain-mm 0 `
   --stage media `
-  --soil franco `
   --area-m2 10000
 ```
 
@@ -288,23 +269,21 @@ python -m irrigation_advisor.cli compare `
   --et0 5.6 `
   --rain-mm 0 `
   --stage media `
-  --soil franco `
   --area-m2 10000 `
   --output markdown
 ```
 
-Esta comparativa mantiene constantes ET0, lluvia, suelo, superficie y eficiencia. Lo que cambia es el perfil agronomico del cultivo: `Kc`, profundidad radicular, marco por planta y fraccion de agotamiento.
+Esta comparativa mantiene constantes ET0, lluvia, superficie y eficiencia. Lo que cambia es el perfil agronomico del cultivo: `Kc` y marco por planta.
 
 ## Exportacion de datos
 
-Para generar un dataset CSV preparado para resultados, dashboard o BigQuery:
+Para generar un dataset CSV preparado para resultados y dashboard:
 
 ```powershell
 python -m irrigation_advisor.cli export-comparison `
   --et0 5.6 `
   --rain-mm 0 `
   --stage media `
-  --soil franco `
   --area-m2 10000 `
   --output-file data/resultados/comparativa_riego.csv
 ```
@@ -316,15 +295,14 @@ python -m irrigation_advisor.cli export-comparison `
   --et0 5.6 `
   --rain-mm 0 `
   --stage media `
-  --soil franco `
   --area-m2 10000 `
   --output-file data/resultados/comparativa_riego.json
 ```
 
-Columnas del CSV:
+Columnas principales del CSV:
 
 ```text
-fecha,estacion,nombre_estacion,provincia,cultivo,fase,suelo,superficie_m2,eficiencia_riego,lluvia_efectiva_ratio,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,profundidad_raices_m,marco_m2_por_planta,agua_facilmente_disponible_mm,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,ranking_demanda
+fecha,estacion,nombre_estacion,provincia,cultivo,fase,superficie_m2,eficiencia_riego,lluvia_efectiva_ratio,et0_mm,lluvia_mm,tmin_c,tmax_c,tmedia_c,kc,marco_m2_por_planta,etc_mm,riego_bruto_mm,litros_totales,litros_por_planta,ranking_demanda
 ```
 
 ## Exportacion con AEMET real
@@ -338,7 +316,6 @@ python -m irrigation_advisor.cli export-aemet-comparison `
   --start 2024-05-01 `
   --end 2024-05-07 `
   --stage media `
-  --soil franco `
   --area-m2 10000 `
   --output-file data/resultados/comparativa_aemet_sevilla.csv
 ```
@@ -395,7 +372,6 @@ python -m irrigation_advisor.cli recommend `
   --end 2024-05-07 `
   --crop olivar `
   --stage media `
-  --soil franco `
   --area-m2 3500
 ```
 
@@ -408,7 +384,6 @@ python -m irrigation_advisor.cli build-ml-dataset `
   --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
-  --soil franco `
   --output-file data/resultados/dataset_ml_aemet.csv
 ```
 
@@ -453,18 +428,15 @@ python -m unittest discover -s tests -v
 - `ETc`: evapotranspiracion real del cultivo, en mm/dia.
 - `rain_mm`: precipitacion diaria.
 - `effective_rainfall_ratio`: fraccion de lluvia considerada util. Por defecto: `0.80`.
-- `field_capacity`: capacidad de campo del suelo, en fraccion volumetrica.
-- `wilting_point`: punto de marchitez permanente, en fraccion volumetrica.
-- `root_depth_m`: profundidad efectiva de raices. Se aplica segun cultivo salvo que se sobrescriba.
 - `plant_spacing_m2`: superficie asignada por planta. Se aplica segun cultivo salvo que se sobrescriba.
-- `max_depletion_fraction`: fraccion maxima de agotamiento del agua disponible. Se aplica segun cultivo salvo que se sobrescriba.
-- `irrigation_efficiency`: eficiencia del sistema de riego. En goteo suele ser alta, pero debe justificarse.
+- `irrigation_efficiency`: eficiencia aplicada para pasar de riego neto a riego bruto.
+- `area_m2`: superficie de la parcela usada para convertir milimetros en litros.
 
 ## Limites del MVP
 
-- No sustituye la calibracion en campo con sensores de humedad.
-- Los valores de `Kc`, profundidad radicular, marco por planta, capacidad de campo y punto de marchitez son valores iniciales; deben ajustarse con bibliografia y datos reales de la parcela.
-- AEMET no siempre publica todas las variables necesarias para Penman-Monteith. Por eso se usa Hargreaves-Samani como estimacion cuando faltan radiacion, viento o humedad.
+- No sustituye una validacion agronomica en campo.
+- Los valores de `Kc` y marco por planta son valores iniciales; deben ajustarse con bibliografia y datos reales de la parcela.
+- AEMET no siempre publica ET0 directamente. Por eso se usa Hargreaves-Samani como estimacion cuando faltan datos completos.
 - El modulo calcula una recomendacion agronomica. El modelo ML debe entrenarse despues con historico suficiente y una variable objetivo validada.
 
 ## Etica y licencia

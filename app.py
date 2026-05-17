@@ -16,7 +16,7 @@ from irrigation_advisor.cli import (
     weather_days_from_export,
 )
 from irrigation_advisor.ml import predict_irrigation_with_model
-from irrigation_advisor.models import CROP_DEFAULTS, SOIL_DEFAULTS
+from irrigation_advisor.models import CROP_DEFAULTS
 from irrigation_advisor.weather_cache import AemetCache, DEFAULT_CACHE_DB
 
 
@@ -79,16 +79,7 @@ def main() -> None:
 
         plot_col, irrigation_col = st.columns(2)
         with plot_col:
-            soil = st.selectbox("Suelo", options=sorted(SOIL_DEFAULTS), index=sorted(SOIL_DEFAULTS).index("franco"))
             area_m2 = st.number_input("Superficie (m2)", min_value=1.0, value=3500.0, step=100.0)
-            current_soil_moisture = st.number_input(
-                "Humedad inicial volumetrica",
-                min_value=0.0,
-                max_value=0.69,
-                value=0.0,
-                step=0.01,
-            )
-            use_current_moisture = st.checkbox("Calcular primer riego hasta capacidad de campo")
 
         with irrigation_col:
             irrigation_efficiency = st.slider("Eficiencia de riego", min_value=0.50, max_value=1.00, value=0.90, step=0.01)
@@ -111,11 +102,9 @@ def main() -> None:
             end=end.isoformat(),
             crop=crop,
             stage=stage,
-            soil=soil,
             area_m2=area_m2,
             irrigation_efficiency=irrigation_efficiency,
             effective_rainfall_ratio=effective_rainfall_ratio,
-            current_soil_moisture=current_soil_moisture if use_current_moisture else None,
         )
         try:
             recommendation = calculate_recommendation(
@@ -247,11 +236,9 @@ def build_args(
     end: str,
     crop: str,
     stage: str,
-    soil: str,
     area_m2: float,
     irrigation_efficiency: float,
     effective_rainfall_ratio: float,
-    current_soil_moisture: float | None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         station=station.strip() or None,
@@ -263,15 +250,9 @@ def build_args(
         crop=crop,
         stage=stage,
         kc=None,
-        soil=soil,
-        root_depth_m=None,
-        field_capacity=None,
-        wilting_point=None,
-        max_depletion_fraction=None,
         area_m2=area_m2,
         irrigation_efficiency=irrigation_efficiency,
         effective_rainfall_ratio=effective_rainfall_ratio,
-        current_soil_moisture=current_soil_moisture,
         plant_spacing_m2=None,
     )
 

@@ -10,7 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Iterable
 
-from .calculator import build_crop_profile, build_soil_profile
+from .calculator import build_crop_profile
 from .models import IrrigationSystem, WeatherDay
 
 
@@ -25,14 +25,12 @@ NUMERIC_FIELDS = [
     "tmax_c",
     "tmedia_c",
     "kc",
-    "profundidad_raices_m",
     "marco_m2_por_planta",
-    "agua_facilmente_disponible_mm",
     "eficiencia_riego",
     "lluvia_efectiva_ratio",
 ]
 
-CATEGORICAL_FIELDS = ["estacion", "provincia", "cultivo", "fase", "suelo"]
+CATEGORICAL_FIELDS = ["estacion", "provincia", "cultivo", "fase"]
 
 
 @dataclass(frozen=True)
@@ -216,9 +214,7 @@ def row_to_features(
         "tmax_c": tmax or 0.0,
         "tmedia_c": tmean or 0.0,
         "kc": optional_float(row.get("kc")) or 0.0,
-        "profundidad_raices_m": optional_float(row.get("profundidad_raices_m")) or 0.0,
         "marco_m2_por_planta": plant_spacing,
-        "agua_facilmente_disponible_mm": optional_float(row.get("agua_facilmente_disponible_mm")) or 0.0,
         "superficie_m2": area_m2,
         "plantas_estimadas": plants,
         "eficiencia_riego": optional_float(row.get("eficiencia_riego")) or default_efficiency,
@@ -227,7 +223,6 @@ def row_to_features(
         "provincia": str(row.get("provincia") or ""),
         "cultivo": str(row.get("cultivo") or ""),
         "fase": str(row.get("fase") or ""),
-        "suelo": str(row.get("suelo") or ""),
     }
 
 
@@ -441,15 +436,6 @@ def prediction_rows_from_weather(
     province: str | None,
 ) -> tuple[list[dict], IrrigationSystem]:
     crop = build_crop_profile(crop=args.crop, stage=args.stage, kc=getattr(args, "kc", None))
-    root_depth_m = getattr(args, "root_depth_m", None) or crop.root_depth_m
-    max_depletion_fraction = getattr(args, "max_depletion_fraction", None) or crop.max_depletion_fraction
-    soil = build_soil_profile(
-        soil=args.soil,
-        root_depth_m=root_depth_m,
-        field_capacity=getattr(args, "field_capacity", None),
-        wilting_point=getattr(args, "wilting_point", None),
-        max_depletion_fraction=max_depletion_fraction,
-    )
     plant_spacing_m2 = getattr(args, "plant_spacing_m2", None) or crop.plant_spacing_m2
     system = IrrigationSystem(
         area_m2=args.area_m2,
@@ -465,16 +451,13 @@ def prediction_rows_from_weather(
                 "provincia": province,
                 "cultivo": crop.name,
                 "fase": crop.stage,
-                "suelo": soil.name,
                 "et0_mm": day.et0_mm,
                 "lluvia_mm": day.rain_mm,
                 "tmin_c": day.tmin_c,
                 "tmax_c": day.tmax_c,
                 "tmedia_c": day.tmean_c,
                 "kc": crop.kc,
-                "profundidad_raices_m": root_depth_m,
                 "marco_m2_por_planta": plant_spacing_m2,
-                "agua_facilmente_disponible_mm": soil.readily_available_water_mm,
                 "superficie_m2": system.area_m2,
                 "eficiencia_riego": system.efficiency,
                 "lluvia_efectiva_ratio": getattr(args, "effective_rainfall_ratio", 0.80),
