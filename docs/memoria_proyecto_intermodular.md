@@ -313,7 +313,46 @@ La recomendación se centra en la necesidad hídrica de la plantación: milímet
 
 El dataset utilizado en el prototipo puede considerarse semisintético: los datos meteorológicos proceden de AEMET, pero la etiqueta `riego_bruto_mm` se genera mediante el cálculo agronómico implementado. Esta decisión permite entrenar y validar la capa ML de forma reproducible. La limitación es que el modelo aprende a aproximar el motor agronómico, no una respuesta medida directamente en campo.
 
-### 3.8 Trazabilidad entre objetivos, metodología y validación
+### 3.8 Matriz de variables del sistema
+
+Para evitar confusión entre datos reales, parámetros de configuración y ampliaciones futuras, las variables del sistema se clasifican según su origen y su uso actual. Esta tabla también delimita el alcance defendible del prototipo.
+
+| Categoría | Variable | Fuente actual | Uso en el sistema | Estado |
+|---|---|---|---|---|
+| Localización | Estación AEMET | Inventario AEMET/cache SQLite | Selecciona la zona climática y filtra los datos diarios. | Implementada |
+| Localización | Provincia y nombre de estación | Inventario AEMET/cache SQLite | Búsqueda nacional de estaciones y variable categórica del modelo. | Implementada |
+| Tiempo | Fecha diaria | Rango elegido por el usuario | Ordena la serie temporal y genera variables cíclicas para ML. | Implementada |
+| Clima | Precipitación diaria | AEMET OpenData | Calcula lluvia efectiva y reduce la necesidad de riego. | Implementada |
+| Clima | Temperatura mínima, máxima y media | AEMET OpenData | Estima ET0 cuando no viene directa y alimenta el modelo ML. | Implementada |
+| Clima | ET0 | AEMET o cálculo Hargreaves-Samani | Base del cálculo `ETc = ET0 * Kc`. | Implementada/derivada |
+| Clima | Humedad relativa | AEMET/IoT futuro | Mejoraría el cálculo climático avanzado. | Futuro |
+| Clima | Viento | AEMET/IoT futuro | Necesario para modelos completos tipo Penman-Monteith. | Futuro |
+| Clima | Radiación solar | AEMET/IoT futuro | Mejoraría la estimación de evapotranspiración. | Futuro |
+| Suelo | Tipo de suelo | Selección del usuario | Activa perfil de capacidad de campo y punto de marchitez. | Implementada |
+| Suelo | Capacidad de campo | Perfil edáfico del código | Calcula agua disponible en el suelo. | Parametrizada |
+| Suelo | Punto de marchitez | Perfil edáfico del código | Calcula agua disponible y déficit hídrico. | Parametrizada |
+| Suelo | Humedad volumétrica inicial | Entrada opcional del usuario | Calcula primer riego hasta capacidad de campo si se activa. | Parcial/manual |
+| Suelo | Temperatura del suelo | Sensor IoT futuro | Permitirá mejorar diagnóstico de estado del suelo. | Futuro |
+| Suelo | Conductividad eléctrica | Sensor IoT futuro | Permitirá controlar salinidad/riesgo agronómico. | Futuro |
+| Cultivo | Cultivo | Selección del usuario | Cambia Kc, profundidad radicular, marco y agotamiento. | Implementada |
+| Cultivo | Fase fenológica | Selección del usuario | Selecciona el Kc correspondiente. | Implementada |
+| Cultivo | Kc | Perfil de cultivo o parámetro técnico | Convierte ET0 en ETc y entra en el modelo ML. | Parametrizada |
+| Cultivo | Profundidad radicular | Perfil de cultivo | Calcula agua disponible y forma parte del dataset. | Parametrizada |
+| Cultivo | Marco m2/planta | Perfil de cultivo | Convierte lámina de riego en litros por planta. | Parametrizada |
+| Cultivo | NDVI | Imágenes satelitales futuras | Indicador de vigor vegetal y estrés hídrico. | Futuro |
+| Cultivo | Absorción/respuesta real del cultivo | Sensores/campo futuro | Calibraría el modelo con respuesta medida. | Futuro |
+| Parcela | Superficie m2 | Entrada del usuario | Convierte milímetros de riego en litros totales para la parcela. | Implementada |
+| Riego | Eficiencia de riego | Entrada del usuario | Convierte riego neto en riego bruto. | Implementada |
+| Riego | Ratio de lluvia efectiva | Entrada del usuario | Define qué parte de la lluvia reduce el riego. | Implementada |
+| Resultado | Riego bruto mm | Cálculo agronómico/ML | Variable objetivo del modelo y lámina recomendada. | Implementada |
+| Resultado | Litros totales | Cálculo a partir de mm y superficie | Agua total que debe distribuirse en toda la parcela. | Implementada |
+| Resultado | Litros por planta | Cálculo a partir de mm y marco | Dosis media diaria por planta. | Implementada |
+
+La superficie de la parcela no modifica la lámina `riego_bruto_mm`, porque una lámina de 1 mm equivale a 1 L/m2. Su función es convertir la recomendación en litros totales para el cliente. Por ello, el modelo ML predice milímetros y la aplicación transforma después esa predicción en litros según las dimensiones introducidas.
+
+Las variables marcadas como futuras no se han usado para producir resultados del prototipo. Se mantienen en la memoria porque forman parte de la arquitectura objetivo con IoT, BigQuery y mejora del modelo predictivo.
+
+### 3.9 Trazabilidad entre objetivos, metodología y validación
 
 Para mantener coherencia entre lo planteado en la introducción y lo entregado en resultados, cada objetivo específico se vincula con una herramienta, un desarrollo y una forma de validación.
 
@@ -327,7 +366,7 @@ Para mantener coherencia entre lo planteado en la introducción y lo entregado e
 | 6 | Crear interfaz. | Streamlit. | Formulario de cliente y visualización de resultados. | Prueba funcional en navegador local. |
 | 7 | Preparar Big Data. | Estructura compatible con BigQuery. | Columnas exportables y flujo ETL documentado. | Dataset tabular preparado para carga futura. |
 
-### 3.9 Diagrama de Gantt
+### 3.10 Diagrama de Gantt
 
 El siguiente Gantt resume la planificación por semanas. Se presenta como cronograma académico del desarrollo realizado.
 
@@ -342,7 +381,7 @@ El siguiente Gantt resume la planificación por semanas. Se presenta como cronog
 | Modelo ML/Keras |  |  |  |  |  | X | X |  |
 | Pruebas, memoria y GitHub |  |  |  |  |  |  | X | X |
 
-### 3.10 Cronograma
+### 3.11 Cronograma
 
 | Semana | Actividad | Resultado |
 |---:|---|---|
@@ -355,7 +394,7 @@ El siguiente Gantt resume la planificación por semanas. Se presenta como cronog
 | 7 | Implementación de ML/Keras. | Modelo predictivo entrenado. |
 | 8 | Pruebas, documentación y GitHub. | Proyecto preparado para entrega. |
 
-### 3.11 ROI y viabilidad económica
+### 3.12 ROI y viabilidad económica
 
 No se calcula un ROI monetario cerrado porque faltan datos reales de explotación: consumo histórico de riego tradicional, precio del agua, coste del servicio, coste de sensores y ahorro confirmado en campo. Para evitar estimaciones no justificadas, el proyecto deja definido el método de cálculo:
 
@@ -368,7 +407,7 @@ ROI = ((ahorro_economico - coste_implantacion) / coste_implantacion) * 100
 
 La aplicación ya ofrece la variable necesaria para alimentar este análisis: litros recomendados por parcela, cultivo y periodo. Con datos reales de consumo previo, el ROI puede calcularse sin modificar el sistema.
 
-### 3.12 Presupuesto estimado
+### 3.13 Presupuesto estimado
 
 | Concepto | Cantidad | Coste unitario | Coste estimado |
 |---|---:|---:|---:|
@@ -384,7 +423,7 @@ La aplicación ya ofrece la variable necesaria para alimentar este análisis: li
 
 El presupuesto distingue entre el prototipo software ya desarrollado y una posible instalación IoT en campo. Las herramientas principales utilizadas son gratuitas o de código abierto.
 
-### 3.13 Gestión ética y licencia del proyecto
+### 3.14 Gestión ética y licencia del proyecto
 
 La gestión ética del proyecto se aplica en tres niveles:
 
@@ -701,26 +740,34 @@ python -m irrigation_advisor.cli predict-ml `
   --output markdown
 ```
 
-### Anexo B. Variables del dataset ML
+### Anexo B. Variables exportables y variables ML
 
-| Variable | Descripción |
-|---|---|
-| `fecha` | Día analizado. |
-| `estacion` | Indicativo AEMET. |
-| `nombre_estacion` | Nombre de la estación. |
-| `provincia` | Provincia de la estación. |
-| `cultivo` | Olivar, cítricos o almendro. |
-| `fase` | Inicio, desarrollo, media o madurez. |
-| `suelo` | Tipo de suelo. |
-| `superficie_m2` | Dimensión de la parcela. |
-| `et0_mm` | Evapotranspiración de referencia. |
-| `lluvia_mm` | Precipitación diaria. |
-| `tmin_c`, `tmax_c`, `tmedia_c` | Temperaturas diarias. |
-| `kc` | Coeficiente de cultivo. |
-| `profundidad_raices_m` | Profundidad radicular estimada. |
-| `marco_m2_por_planta` | Superficie asignada a cada planta. |
-| `riego_bruto_mm` | Variable objetivo del modelo. |
-| `litros_totales` | Conversión de lámina a litros. |
+El dataset exportable contiene más columnas que las usadas directamente por el modelo. Esto es intencionado: unas columnas sirven para trazabilidad, otras para cálculo agronómico y otras para entrenamiento.
+
+| Variable | Tipo | Uso principal |
+|---|---|---|
+| `fecha` | Temporal | Día analizado y generación de variables cíclicas `day_sin` y `day_cos`. |
+| `estacion` | Categórica | Identificación de estación AEMET y entrada categórica del modelo. |
+| `nombre_estacion` | Descriptiva | Trazabilidad del origen del dato. |
+| `provincia` | Categórica | Búsqueda geográfica y entrada categórica del modelo. |
+| `cultivo` | Categórica | Entrada del modelo y selección de perfil agronómico. |
+| `fase` | Categórica | Entrada del modelo y selección de Kc. |
+| `suelo` | Categórica | Entrada del modelo y selección de perfil edáfico. |
+| `superficie_m2` | Numérica de servicio | Conversión de lámina de riego a litros totales. |
+| `et0_mm` | Numérica climática | Entrada del cálculo y del modelo. |
+| `lluvia_mm` | Numérica climática | Entrada del cálculo y del modelo. |
+| `tmin_c`, `tmax_c`, `tmedia_c` | Numérica climática | Estimación de ET0 y entrada del modelo. |
+| `kc` | Numérica agronómica | Entrada del cálculo y del modelo. |
+| `profundidad_raices_m` | Numérica agronómica | Agua disponible y entrada del modelo. |
+| `marco_m2_por_planta` | Numérica agronómica | Litros por planta y entrada del modelo. |
+| `agua_facilmente_disponible_mm` | Numérica edáfica | Indicador de reserva útil del suelo y entrada del modelo. |
+| `eficiencia_riego` | Numérica de riego | Ajuste de riego neto a riego bruto. |
+| `lluvia_efectiva_ratio` | Numérica de riego | Porcentaje de lluvia considerado útil. |
+| `etc_mm` | Derivada | Evapotranspiración del cultivo. |
+| `riego_bruto_mm` | Objetivo ML | Variable que predice el modelo. |
+| `litros_totales` | Resultado | Agua total recomendada para la parcela. |
+| `litros_por_planta` | Resultado | Dosis media por planta. |
+| `ranking_demanda` | Resultado comparativo | Ordena cultivos según demanda de riego. |
 
 ### Anexo C. Límites técnicos actuales
 
