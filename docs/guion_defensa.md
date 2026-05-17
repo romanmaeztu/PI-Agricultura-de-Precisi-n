@@ -94,6 +94,14 @@ Las entradas son variables climáticas y agronómicas aplicadas realmente en el 
 
 La salida del modelo es una lámina de riego en milímetros. Después se convierte a litros según la superficie del cliente.
 
+El entrenamiento actual usa históricos AEMET y una etiqueta agronómica calculada por el propio motor del proyecto. Por tanto, el modelo aprende la demanda esperada según la referencia técnica, no el comportamiento real de un agricultor concreto.
+
+Frase defendible:
+
+```text
+El modelo predice la demanda hídrica esperada; para saber si un agricultor riega bien o mal habría que calibrarlo con riegos reales aplicados, estado del cultivo y producción.
+```
+
 ## 8. Qué no se ha implementado
 
 Es importante decirlo con claridad:

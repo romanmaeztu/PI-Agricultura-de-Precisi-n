@@ -26,3 +26,18 @@ python -m irrigation_advisor.cli train-ml `
   --backend keras `
   --epochs 200
 ```
+
+Ultimo entrenamiento demostrativo realizado:
+
+| Campo | Valor |
+|---|---:|
+| Dataset | `data/resultados/dataset_ml_aemet.csv` |
+| Filas | 21 |
+| Variables de entrada | 17 |
+| Backend | `keras_mlp` |
+| Target | `riego_bruto_mm` |
+| MAE | 0.0913 mm |
+| RMSE | 0.1180 mm |
+| R2 | 0.9595 |
+
+Estas metricas validan que el modelo aprende la referencia agronomica del dataset local. No equivalen a una validacion con datos reales de agricultores.

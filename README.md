@@ -8,6 +8,7 @@ Este MVP calcula cuanto regar una parcela a partir de datos climaticos de AEMET,
 - Memoria editable en Markdown: `docs/memoria_proyecto_intermodular.md`.
 - Checklist de entrega: `docs/checklist_entrega_final.md`.
 - Guion de defensa: `docs/guion_defensa.md`.
+- Explicacion de ML, calibracion y entrenamiento: `docs/ml_calibracion_y_entrenamiento.md`.
 - Capturas de la interfaz: `docs/capturas/`.
 
 ## Logica de calculo
