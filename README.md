@@ -10,6 +10,7 @@ Este MVP calcula cuanto regar una parcela a partir de datos climaticos de AEMET,
 - Guion de defensa: `docs/guion_defensa.md`.
 - Explicacion de ML, calibracion y entrenamiento: `docs/ml_calibracion_y_entrenamiento.md`.
 - Simulacion demostrativa de una parcela: `docs/simulacion_parcela_demo.md`.
+- Demo estable para la defensa: `docs/demo_presentacion_estable.md`.
 - Capturas de la interfaz: `docs/capturas/`.
 
 ## Logica de calculo
@@ -119,7 +120,7 @@ python -m irrigation_advisor.cli recommend `
   --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
-  --weather-file data/resultados/comparativa_aemet_sevilla.csv `
+  --weather-file data/demo/aemet_sevilla_mayo_2024.csv `
   --crop olivar `
   --stage media `
   --area-m2 3500 `
@@ -148,7 +149,7 @@ Ejecutar la app:
 python -m streamlit run app.py
 ```
 
-La interfaz permite elegir cualquier estacion del inventario AEMET de Espana mediante filtro por provincia, ademas de cultivo y superficie. Puede trabajar con AEMET API, cache local o con un CSV climatico ya exportado.
+La interfaz permite elegir cualquier estacion del inventario AEMET de Espana mediante filtro por provincia, ademas de cultivo y superficie. Puede trabajar con AEMET API, cache local o con un CSV climatico ya exportado. Para la defensa se recomienda usar `CSV local` con `data/demo/aemet_sevilla_mayo_2024.csv`.
 
 ## Capa predictiva ML/Keras
 

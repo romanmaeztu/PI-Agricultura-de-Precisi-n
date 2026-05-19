@@ -14,7 +14,7 @@ El caso se plantea como una parcela de ejemplo. No representa una finca real val
 | Localización climática | Sevilla Aeropuerto |
 | Estación AEMET | `5783` |
 | Provincia | Sevilla |
-| Fuente de datos | CSV local generado desde AEMET |
+| Fuente de datos | CSV local de demo generado desde AEMET |
 | Periodo climático | 2024-05-01 a 2024-05-07 |
 | Cultivo | Olivar |
 | Fase fenológica | Media |
@@ -33,7 +33,7 @@ La simulación usa `CSV local` para evitar nuevas peticiones a AEMET durante la 
 ```powershell
 python -m irrigation_advisor.cli predict-ml `
   --model-dir models/riego_predictivo_keras `
-  --weather-file data/resultados/comparativa_aemet_sevilla.csv `
+  --weather-file data/demo/aemet_sevilla_mayo_2024.csv `
   --province SEVILLA `
   --station-name AEROPUERTO `
   --start 2024-05-01 `

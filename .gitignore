@@ -20,3 +20,5 @@ data/*.db
 data/cache/
 models/*
 !models/README.md
+!models/riego_predictivo/
+!models/riego_predictivo/model.json

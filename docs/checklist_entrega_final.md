@@ -12,6 +12,7 @@ Antes de entregar, comprobar que existen y se adjuntan o se enlazan estos elemen
 | Motor de cálculo | `irrigation_advisor/` | Implementado |
 | Pruebas unitarias | `tests/test_calculator.py` | Implementadas |
 | Capturas de la app | `docs/capturas/` | Actualizadas |
+| Demo estable | `docs/demo_presentacion_estable.md` | Preparada |
 | README técnico | `README.md` | Actualizado |
 | Repositorio GitHub | `https://github.com/romanmaeztu/PI-Agricultura-de-Precisi-n` | Subido |
 
@@ -76,16 +77,17 @@ Si el puerto 8501 está ocupado, Streamlit propondrá otro puerto.
 ## 5. Flujo recomendado para la demostración
 
 1. Abrir la app Streamlit.
-2. Elegir `CSV local` o `Cache local` para evitar saturar AEMET durante la exposición.
-3. Seleccionar estación, fechas, cultivo, fase y superficie.
-4. Activar el modelo ML si se quiere mostrar la capa predictiva.
-5. Pulsar `Calcular recomendacion`.
-6. Explicar los resultados principales:
+2. Elegir `CSV local` para evitar saturar AEMET durante la exposición.
+3. Usar el archivo `data/demo/aemet_sevilla_mayo_2024.csv`.
+4. Seleccionar estación, fechas, cultivo, fase y superficie.
+5. Activar el modelo ML si se quiere mostrar la capa predictiva.
+6. Pulsar `Calcular recomendacion`.
+7. Explicar los resultados principales:
    - `Riego total`: agua total para toda la parcela en el periodo.
    - `Riego medio diario`: media diaria para toda la parcela.
    - `Litros por planta`: media diaria por planta según el marco del cultivo.
    - `Lamina diaria`: profundidad media diaria de riego; 1 mm equivale a 1 L/m2.
-7. Mostrar el detalle diario y las descargas Markdown/JSON.
+8. Mostrar el detalle diario y las descargas Markdown/JSON.
 
 ## 6. Revisión final de coherencia
 

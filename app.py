@@ -20,7 +20,7 @@ from irrigation_advisor.models import CROP_DEFAULTS
 from irrigation_advisor.weather_cache import AemetCache, DEFAULT_CACHE_DB
 
 
-DEFAULT_WEATHER_FILE = "data/resultados/comparativa_aemet_sevilla.csv"
+DEFAULT_WEATHER_FILE = "data/demo/aemet_sevilla_mayo_2024.csv"
 DEFAULT_MODEL_DIR = "models/riego_predictivo"
 DEFAULT_CACHE_FILE = DEFAULT_CACHE_DB
 ALL_PROVINCES = "Todas las provincias"
@@ -35,7 +35,7 @@ def main() -> None:
     st.title("Recomendacion de riego")
 
     source_options = ["Cache local", "CSV local", "AEMET API"]
-    source_index = 0 if Path(DEFAULT_CACHE_FILE).exists() else (1 if Path(DEFAULT_WEATHER_FILE).exists() else 2)
+    source_index = 1 if Path(DEFAULT_WEATHER_FILE).exists() else (0 if Path(DEFAULT_CACHE_FILE).exists() else 2)
     source = st.radio(
         "Datos climaticos",
         source_options,
@@ -84,7 +84,7 @@ def main() -> None:
         with irrigation_col:
             irrigation_efficiency = st.slider("Eficiencia de riego", min_value=0.50, max_value=1.00, value=0.90, step=0.01)
             effective_rainfall_ratio = st.slider("Lluvia efectiva", min_value=0.00, max_value=1.00, value=0.80, step=0.05)
-            use_ml_prediction = st.checkbox("Usar modelo ML entrenado")
+            use_ml_prediction = st.checkbox("Usar modelo ML entrenado", value=True)
             ml_model_dir = st.text_input(
                 "Directorio del modelo ML",
                 value=DEFAULT_MODEL_DIR,
@@ -396,7 +396,7 @@ def render_ml_prediction(ml_prediction: dict) -> None:
 def format_liters(value: float | None) -> str:
     if value is None:
         return "N/D"
-    return f"{value:.2f} L/planta/dia"
+    return f"{value:.2f} L/planta"
 
 
 def format_optional_metric(value: object) -> str:

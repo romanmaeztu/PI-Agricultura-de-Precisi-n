@@ -1,0 +1,95 @@
+{
+  "model_type": "linear_ridge",
+  "target": "riego_bruto_mm",
+  "created_at": "2026-05-17T19:19:56.860870+00:00",
+  "schema": {
+    "numeric_fields": [
+      "day_sin",
+      "day_cos",
+      "et0_mm",
+      "lluvia_mm",
+      "tmin_c",
+      "tmax_c",
+      "tmedia_c",
+      "kc",
+      "marco_m2_por_planta",
+      "eficiencia_riego",
+      "lluvia_efectiva_ratio"
+    ],
+    "categorical_fields": [
+      "estacion",
+      "provincia",
+      "cultivo",
+      "fase"
+    ],
+    "numeric_means": {
+      "day_sin": 0.8386574551838154,
+      "day_cos": -0.5436083392446545,
+      "et0_mm": 5.125294117647059,
+      "lluvia_mm": 0.0,
+      "tmin_c": 10.117647058823529,
+      "tmax_c": 25.78235294117647,
+      "tmedia_c": 17.947058823529414,
+      "kc": 0.7735294117647059,
+      "marco_m2_por_planta": 18.0,
+      "eficiencia_riego": 0.9,
+      "lluvia_efectiva_ratio": 0.8
+    },
+    "numeric_stds": {
+      "day_sin": 0.018352936244336402,
+      "day_cos": 0.028404508435928302,
+      "et0_mm": 0.6613899592530055,
+      "lluvia_mm": 1.0,
+      "tmin_c": 2.280669482234818,
+      "tmax_c": 3.0654114576748572,
+      "tmedia_c": 2.3111284860199217,
+      "kc": 0.08422247684280211,
+      "marco_m2_por_planta": 9.203579866168445,
+      "eficiencia_riego": 1.0,
+      "lluvia_efectiva_ratio": 1.0
+    },
+    "categories": {
+      "estacion": [
+        "5783"
+      ],
+      "provincia": [
+        "SEVILLA"
+      ],
+      "cultivo": [
+        "almendro",
+        "citricos",
+        "olivar"
+      ],
+      "fase": [
+        "media"
+      ]
+    }
+  },
+  "weights": [
+    4.414897575497167,
+    -0.06907600476692093,
+    0.0027379562315143794,
+    0.27919915469821904,
+    0.0,
+    0.028283034775401117,
+    0.47915181584847083,
+    -0.29972787032761067,
+    0.24603960897379165,
+    0.1751773878729913,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.12927063787116497,
+    -0.1026412460790001,
+    -0.02662939177323856,
+    0.0
+  ],
+  "metrics": {
+    "mae_mm": 0.0704,
+    "rmse_mm": 0.0918,
+    "r2": 0.9755,
+    "rows": 4
+  },
+  "backend_requested": "linear"
+}

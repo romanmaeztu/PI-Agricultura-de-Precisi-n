@@ -116,16 +116,19 @@ Esto no resta valor al proyecto; delimita bien el alcance.
 
 ## 9. Demo recomendada
 
+La demo debe ocupar unos 6-8 minutos dentro de una defensa total de 30 minutos.
+
 1. Abrir Streamlit.
-2. Usar `CSV local` o `Cache local`.
-3. Elegir estación y fechas.
-4. Elegir `olivar`, fase `media`, superficie `3500 m2`.
-5. Activar ML.
-6. Calcular recomendación.
-7. Explicar cada métrica.
-8. Cambiar cultivo a `citricos` o `almendro` y mostrar que la demanda cambia.
-9. Descargar informe.
-10. Enseñar las pruebas unitarias superadas.
+2. Usar `CSV local`.
+3. Usar `data/demo/aemet_sevilla_mayo_2024.csv`.
+4. Elegir estación `5783`, Sevilla Aeropuerto.
+5. Elegir `olivar`, fase `media`, superficie `3500 m2`.
+6. Activar ML con `models/riego_predictivo`.
+7. Calcular recomendación.
+8. Explicar cada métrica.
+9. Cambiar cultivo a `citricos` o `almendro` y mostrar que la demanda cambia.
+10. Descargar informe.
+11. Enseñar las pruebas unitarias superadas.
 
 ## 10. Preguntas probables del tribunal
 
