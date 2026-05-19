@@ -11,6 +11,8 @@ Este MVP calcula cuanto regar una parcela a partir de datos climaticos de AEMET,
 - Explicacion de ML, calibracion y entrenamiento: `docs/ml_calibracion_y_entrenamiento.md`.
 - Simulacion demostrativa de una parcela: `docs/simulacion_parcela_demo.md`.
 - Demo estable para la defensa: `docs/demo_presentacion_estable.md`.
+- Presentacion de defensa: `docs/presentacion_defensa_tfg_riego.pptx`.
+- Guion de presentacion: `docs/guion_presentacion_30min.md`.
 - Capturas de la interfaz: `docs/capturas/`.
 
 ## Logica de calculo
