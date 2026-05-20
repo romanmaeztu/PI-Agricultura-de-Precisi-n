@@ -25,7 +25,7 @@ Desarrollar un sistema de análisis de datos basado en información meteorológi
 | Escalón | Objetivo | Evidencia |
 |---:|---|---|
 | 1 | Definir variables climáticas, de cultivo y parcela. | Modelos de datos y tabla de variables. |
-| 2 | Conectar con AEMET. | Cliente API, selector de estaciones y cache local. |
+| 2 | Conectar con AEMET. | Cliente API, selector de estaciones y caché local. |
 | 3 | Calcular la recomendación de riego. | Motor agronómico en Python. |
 | 4 | Comparar tres cultivos. | Olivar, cítricos y almendro. |
 | 5 | Integrar Machine Learning. | Modelo entrenable para `riego_bruto_mm`. |
@@ -51,8 +51,9 @@ La ET0 procede de AEMET o se estima con Hargreaves-Samani cuando es necesario. E
 
 La app permite:
 
-- Elegir fuente de datos: cache local, CSV local o AEMET API.
-- Elegir estación AEMET.
+- Elegir fuente de datos: caché local, CSV local o AEMET API.
+- Ver el inventario nacional AEMET y filtrar estaciones por provincia o nombre.
+- Elegir estación AEMET; en la demo con CSV local se usa Sevilla Aeropuerto porque el dataset versionado contiene esa estación.
 - Elegir fechas.
 - Elegir cultivo y fase.
 - Introducir superficie de la parcela.
@@ -116,18 +117,16 @@ Esto no resta valor al proyecto; delimita bien el alcance.
 
 ## 9. Demo recomendada
 
-La demo debe ocupar unos 6-8 minutos dentro de una defensa total de 30 minutos.
-
 1. Abrir Streamlit.
 2. Usar `CSV local`.
 3. Usar `data/demo/aemet_sevilla_mayo_2024.csv`.
-4. Elegir estación `5783`, Sevilla Aeropuerto.
+4. Mostrar el inventario nacional AEMET y seleccionar estación `5783`, Sevilla Aeropuerto.
 5. Elegir `olivar`, fase `media`, superficie `3500 m2`.
 6. Activar ML con `models/riego_predictivo`.
 7. Calcular recomendación.
 8. Explicar cada métrica.
-9. Cambiar cultivo a `citricos` o `almendro` y mostrar que la demanda cambia.
-10. Descargar informe.
+9. Cambiar cultivo a `cítricos` o `almendro` y mostrar que la demanda cambia.
+10. Descargar informe Markdown o JSON.
 11. Enseñar las pruebas unitarias superadas.
 
 ## 10. Preguntas probables del tribunal
@@ -135,11 +134,11 @@ La demo debe ocupar unos 6-8 minutos dentro de una defensa total de 30 minutos.
 | Pregunta | Respuesta breve |
 |---|---|
 | ¿Por qué AEMET? | Porque es una fuente oficial, pública y trazable de datos meteorológicos. |
-| ¿Por qué cache local? | Para no saturar la API y poder repetir cálculos sin depender de peticiones constantes. |
+| ¿Por qué caché local? | Para no saturar la API y poder repetir cálculos sin depender de peticiones constantes. |
 | ¿Qué aporta ML si ya hay fórmula? | Permite convertir el cálculo trazable en una capa predictiva entrenable y ampliable con datos reales futuros. |
 | ¿El modelo ya es comercial? | Es un prototipo. Para uso comercial necesita validación con datos reales de campo. |
 | ¿Por qué quitar sensores IoT? | Porque no están implementados. Se mantienen como mejora futura para evitar defender algo que no existe. |
-| ¿Por qué no BigQuery? | Porque el volumen actual no lo exige y no se ha desplegado. El proyecto funciona con CSV/JSON y cache local. |
+| ¿Por qué no BigQuery? | Porque el volumen actual no lo exige y no se ha desplegado. El proyecto funciona con CSV/JSON y caché local. |
 | ¿Cómo se mide el agua? | En mm de lámina de riego y en litros convertidos por superficie. |
 | ¿Qué significa 1 mm de riego? | Equivale a 1 litro por metro cuadrado. |
 

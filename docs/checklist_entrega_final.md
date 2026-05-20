@@ -18,7 +18,7 @@ Antes de entregar, comprobar que existen y se adjuntan o se enlazan estos elemen
 
 ## 2. Alcance que sí se entrega
 
-- Selección de fuente climática: AEMET API, cache local o CSV.
+- Selección de fuente climática: AEMET API, caché local o CSV.
 - Selección de estación AEMET por provincia o inventario nacional.
 - Selección de cultivo: olivar, cítricos y almendro.
 - Selección de fase fenológica.
@@ -79,15 +79,15 @@ Si el puerto 8501 está ocupado, Streamlit propondrá otro puerto.
 1. Abrir la app Streamlit.
 2. Elegir `CSV local` para evitar saturar AEMET durante la exposición.
 3. Usar el archivo `data/demo/aemet_sevilla_mayo_2024.csv`.
-4. Seleccionar estación, fechas, cultivo, fase y superficie.
+4. Mostrar el inventario nacional AEMET y seleccionar estación, fechas, cultivo, fase y superficie.
 5. Activar el modelo ML si se quiere mostrar la capa predictiva.
-6. Pulsar `Calcular recomendacion`.
+6. Pulsar `Calcular recomendación`.
 7. Explicar los resultados principales:
    - `Riego total`: agua total para toda la parcela en el periodo.
    - `Riego medio diario`: media diaria para toda la parcela.
    - `Litros por planta`: media diaria por planta según el marco del cultivo.
-   - `Lamina diaria`: profundidad media diaria de riego; 1 mm equivale a 1 L/m2.
-8. Mostrar el detalle diario y las descargas Markdown/JSON.
+   - `Lámina diaria`: profundidad media diaria de riego; 1 mm equivale a 1 L/m2.
+8. Mostrar las descargas Markdown/JSON.
 
 ## 6. Revisión final de coherencia
 

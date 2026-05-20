@@ -150,7 +150,7 @@ Ejecutar la app:
 python -m streamlit run app.py
 ```
 
-La interfaz permite elegir cualquier estacion del inventario AEMET de Espana mediante filtro por provincia, ademas de cultivo y superficie. Puede trabajar con AEMET API, cache local o con un CSV climatico ya exportado. Para la defensa se recomienda usar `CSV local` con `data/demo/aemet_sevilla_mayo_2024.csv`.
+La interfaz permite consultar 920 estaciones del inventario AEMET de España mediante filtro por provincia y nombre, además de cultivo y superficie. Puede trabajar con AEMET API, caché local o con un CSV climático ya exportado. Para la defensa se recomienda usar `CSV local` con `data/demo/aemet_sevilla_mayo_2024.csv`; en ese modo el cálculo queda fijado a Sevilla Aeropuerto porque el CSV de demo contiene esa estación.
 
 ## Capa predictiva ML/Keras
 

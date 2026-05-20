@@ -2,7 +2,7 @@
 
 ## Sistema predictivo de recomendación de riego basado en AEMET y Machine Learning
 
-**Alumno:** Roman Maeztu  
+**Alumno:** Román Maeztu  
 **Proyecto:** Agricultura de precisión aplicada a la gestión hídrica  
 **Repositorio:** https://github.com/romanmaeztu/PI-Agricultura-de-Precisi-n  
 **Fecha:** Mayo de 2026  
@@ -77,7 +77,7 @@ Los objetivos específicos se plantean como una escalera: cada escalón permite 
 
 ### 1.5 Alcance del proyecto
 
-El proyecto se centra en un prototipo funcional. La versión desarrollada permite trabajar con estaciones AEMET de España, con especial validación sobre datos de la estación Sevilla Aeropuerto. La solución no sustituye una auditoría agronómica profesional, pero sí ofrece una base técnica para construir un servicio de recomendación y predicción de riego.
+El proyecto se centra en un prototipo funcional. La versión desarrollada permite visualizar un inventario nacional de 920 estaciones AEMET y trabajar con estaciones de España. La validación principal se realiza sobre datos de la estación Sevilla Aeropuerto, porque el CSV local de demostración contiene esa estación versionada. La solución no sustituye una auditoría agronómica profesional, pero sí ofrece una base técnica para construir un servicio de recomendación y predicción de riego.
 
 La principal limitación actual es que el modelo de Machine Learning se ha entrenado con datos históricos y etiquetas generadas a partir del cálculo agronómico. Para una operación comercial real, el siguiente paso sería calibrar el sistema con datos reales de riego aplicado, producción y validación de campo.
 
@@ -336,7 +336,7 @@ Para mantener coherencia entre lo planteado en la introducción y lo entregado e
 | Escalón | Objetivo específico | Herramientas/datos | Desarrollo realizado | Validación |
 |---:|---|---|---|---|
 | 1 | Diseñar captación de datos climáticos y agronómicos. | Variables AEMET, cultivo y parcela. | Definición de modelos de datos y perfiles de cultivo. | Pruebas de perfiles y revisión de variables del dataset. |
-| 2 | Conectar con AEMET. | AEMET OpenData y cache local SQLite. | Cliente API, selector nacional de estaciones y ETL. | Descarga por estación/fecha y pruebas con cache. |
+| 2 | Conectar con AEMET. | AEMET OpenData y caché local SQLite. | Cliente API, selector nacional de estaciones y ETL. | Descarga por estación/fecha y pruebas con caché. |
 | 3 | Implementar cálculo de riego. | ET0, Kc, lluvia efectiva, eficiencia y superficie. | Motor agronómico en Python. | Pruebas unitarias de riego y lluvia efectiva. |
 | 4 | Comparar cultivos. | Olivar, cítricos y almendro. | Comparativa diaria y resumen por cultivo. | Ranking de demanda y exportación CSV/JSON/Markdown. |
 | 5 | Crear capa ML. | Dataset AEMET + variables de cultivo/parcela. | Modelo Keras y alternativa lineal. | Métricas MAE, RMSE y R2. |
@@ -411,8 +411,9 @@ La memoria, tablas, diagramas y materiales de documentación se proponen bajo li
 
 El proyecto ha conseguido implementar las siguientes funcionalidades:
 
-- Consulta de estaciones AEMET a nivel nacional.
+- Visualización del inventario nacional de 920 estaciones AEMET.
 - Filtro de estaciones por provincia y nombre.
+- Cálculo estable en modo CSV local fijado a Sevilla Aeropuerto, al ser la estación disponible en el dataset versionado de demostración.
 - Descarga de datos diarios por estación y rango de fechas.
 - Cálculo de ET0 mediante Hargreaves-Samani cuando no se dispone de ET0 directa.
 - Configuración de cultivo, fase fenológica y superficie de parcela.
@@ -505,10 +506,10 @@ En el caso de olivar para una parcela de 3.500 m2, la predicción ML fue muy cer
 
 | Indicador | Cálculo agronómico | Predicción ML |
 |---|---:|---:|
-| Riego total | 97.156,11 L | 97.165,39 L |
-| Riego medio diario | 13.879,44 L/día | 13.880,77 L/día |
+| Riego total | 97.156,11 L | 97.160,07 L |
+| Riego medio diario | 13.879,44 L/día | 13.880,01 L/día |
 | Lámina media diaria | 3,97 mm/día | 3,97 mm/día |
-| Litros medios por planta | 31,72 L/planta/día | 31,73 L/planta/día |
+| Litros medios por planta | 31,72 L/planta/día | 31,72 L/planta/día |
 
 La diferencia es mínima porque el modelo se ha entrenado con etiquetas derivadas del motor agronómico. Este comportamiento es útil para validar la integración técnica de ML, pero el salto a un servicio real requiere incorporar datos reales de campo.
 
@@ -530,16 +531,16 @@ Las pruebas cubren:
 - Exportación de comparativas.
 - Construcción de datasets ML.
 - Predicción desde modelo entrenado.
-- Selector nacional de estaciones AEMET.
+- Selector nacional de estaciones AEMET con 920 estaciones visibles.
 
 ### 4.9 Capturas del sistema
 
-Las siguientes capturas corresponden a una ejecución real del prototipo. El escenario utilizado para documentar la prueba es: estación AEMET Sevilla Aeropuerto, periodo del 01/05/2024 al 07/05/2024, cultivo olivar, fase media, superficie de 3.500 m2 y modelo ML activado.
+Las siguientes capturas corresponden a una ejecución real del prototipo. El escenario utilizado para documentar la prueba es: estación AEMET Sevilla Aeropuerto, periodo del 01/05/2024 al 07/05/2024, cultivo olivar, fase media, superficie de 3.500 m2 y modelo ML activado. La interfaz permite consultar el inventario nacional de 920 estaciones AEMET; en modo CSV local, el cálculo queda fijado a Sevilla Aeropuerto porque es la estación incluida en el dataset de demostración.
 
 | Figura | Evidencia aportada |
 |---:|---|
-| Figura 1 | Selector nacional de estaciones AEMET mediante cache local. |
-| Figura 2 | Formulario principal de configuración de estación, fechas, cultivo y superficie. |
+| Figura 1 | Inventario nacional AEMET mediante caché local, con filtro por provincia y nombre. |
+| Figura 2 | Formulario principal de configuración de estación, fechas, cultivo y superficie; en CSV local se usa Sevilla Aeropuerto. |
 | Figura 3 | Activación del modelo predictivo ML entrenado. |
 | Figura 4 | Resultados principales del cálculo agronómico de riego. |
 | Figura 5 | Predicción ML resumida y comparable con la recomendación base. |
@@ -584,7 +585,7 @@ Las siguientes capturas corresponden a una ejecución real del prototipo. El esc
 | Escalón | Objetivo específico | Estado | Evidencia |
 |---:|---|---|---|
 | 1 | Diseñar captación de datos climáticos y agronómicos. | Cumplido en prototipo | Variables AEMET, cultivo y parcela definidas. |
-| 2 | Conectar el sistema con AEMET. | Cumplido | Cliente AEMET, inventario nacional, cache local y datos diarios por estación. |
+| 2 | Conectar el sistema con AEMET. | Cumplido | Cliente AEMET, inventario nacional, caché local y datos diarios por estación. |
 | 3 | Implementar cálculo agronómico de riego. | Cumplido | Motor de cálculo con ETc, lluvia efectiva, riego bruto y litros. |
 | 4 | Incorporar cultivos configurables. | Cumplido | Olivar, cítricos y almendro con Kc y marco por planta propios. |
 | 5 | Crear capa predictiva ML. | Cumplido en prototipo | Modelo Keras/TensorFlow con R2 superior a 0,85 sobre validación interna. |
@@ -770,7 +771,7 @@ El Product Backlog recoge las funcionalidades necesarias para alcanzar el objeti
 | PB-04 | Como usuario, quiero comparar olivar, cítricos y almendro bajo el mismo escenario. | Alta | Completado |
 | PB-05 | Como desarrollador, quiero exportar datasets CSV/JSON para análisis local y entrenamiento ML. | Media | Completado |
 | PB-06 | Como usuario, quiero activar una predicción ML entrenada con históricos. | Media | Completado |
-| PB-07 | Como usuario, quiero trabajar con cache local para no saturar AEMET. | Media | Completado |
+| PB-07 | Como usuario, quiero trabajar con caché local para no saturar AEMET. | Media | Completado |
 | PB-08 | Como responsable técnico, quiero estudiar una integración IoT futura. | Baja | Pendiente |
 | PB-09 | Como responsable del servicio, quiero calcular ROI con consumos y costes reales. | Media | Pendiente |
 | PB-10 | Como usuario final, quiero informes PDF comerciales. | Baja | Pendiente |
