@@ -12,7 +12,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs" / "capturas"
-URL = "http://localhost:8502"
+URL = "http://localhost:8501"
 
 
 def wait_ready(driver: webdriver.Chrome) -> None:
@@ -107,14 +107,9 @@ def main() -> None:
         driver.get(URL)
         wait_ready(driver)
         screenshot(driver, "figura_00_selector_estacion_aemet.png", 0)
+        screenshot(driver, "figura_01_formulario_configuracion.png", 260)
 
-        click_text(driver, "CSV local")
-        screenshot(driver, "figura_01_formulario_configuracion.png", 0)
-
-        click_label(driver, "Usar modelo ML entrenado")
-        screenshot(driver, "figura_02_modelo_ml_activado.png", 0)
-
-        click_button(driver, "Calcular recomendacion")
+        click_button(driver, "Calcular recomendación de riego")
         try:
             WebDriverWait(driver, 30).until(
                 EC.presence_of_element_located((By.XPATH, "//*[contains(normalize-space(), 'Riego total')]"))
@@ -124,8 +119,8 @@ def main() -> None:
             body = driver.find_element(By.TAG_NAME, "body").text
             raise RuntimeError(body[:2000]) from exc
         time.sleep(2)
-        screenshot(driver, "figura_03_resultados_principales.png", 420)
-        screenshot_near_text(driver, "Prediccion ML", "figura_04_prediccion_ml.png")
+        screenshot(driver, "figura_03_resultados_principales.png", 600)
+        screenshot_near_text(driver, "Predicción ML", "figura_04_prediccion_ml.png")
         screenshot_near_text(driver, "Detalle diario", "figura_05_detalle_diario.png")
     finally:
         driver.quit()
