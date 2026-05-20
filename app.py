@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 from datetime import date
 from html import escape
@@ -36,6 +37,36 @@ CROP_LABELS = {
     "citricos": "Cítricos",
     "olivar": "Olivar",
 }
+REPORT_INDICATOR_DEFINITIONS = [
+    {
+        "indicador": "Riego total",
+        "significado": "Agua total recomendada para toda la parcela en el periodo seleccionado.",
+    },
+    {
+        "indicador": "Riego medio diario",
+        "significado": "Promedio diario de agua para toda la parcela.",
+    },
+    {
+        "indicador": "Litros por planta",
+        "significado": "Media diaria estimada para cada planta según el marco del cultivo.",
+    },
+    {
+        "indicador": "Lámina diaria",
+        "significado": "Profundidad media diaria de riego; 1 mm equivale a 1 L/m².",
+    },
+    {
+        "indicador": "ET0 media",
+        "significado": "Demanda atmosférica media del periodo.",
+    },
+    {
+        "indicador": "ETc media",
+        "significado": "Demanda hídrica del cultivo tras aplicar el coeficiente Kc.",
+    },
+    {
+        "indicador": "Lluvia total",
+        "significado": "Precipitación acumulada que puede reducir la necesidad de riego.",
+    },
+]
 
 
 def main() -> None:
@@ -423,6 +454,28 @@ def apply_theme() -> None:
             border-radius: 10px;
             font-weight: 800;
         }}
+        .download-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin: 18px 0 6px;
+        }}
+        .download-link {{
+            display: block;
+            text-align: center;
+            padding: 12px 16px;
+            border: 1px solid #bfcbbb;
+            border-radius: 10px;
+            background: #ffffff;
+            color: var(--ink) !important;
+            text-decoration: none !important;
+            font-weight: 800;
+        }}
+        .download-link:hover {{
+            border-color: var(--green);
+            color: var(--green) !important;
+            background: #f8fbf5;
+        }}
         .stButton > button[kind="primary"],
         div[data-testid="stFormSubmitButton"] button {{
             background: var(--green);
@@ -444,7 +497,7 @@ def apply_theme() -> None:
             .hero-irrigation {{
                 padding: 26px 22px;
             }}
-            .metric-grid, .context-strip {{
+            .metric-grid, .context-strip, .download-grid {{
                 grid-template-columns: 1fr;
             }}
         }}
@@ -744,27 +797,10 @@ def render_recommendation(recommendation: dict) -> None:
     if "ml_prediction" in recommendation:
         render_ml_prediction(recommendation["ml_prediction"])
 
-    report_markdown = clean_report_markdown(recommendation)
-    report_json = json.dumps(clean_report_dict(recommendation), ensure_ascii=False, indent=2)
-    download_col_a, download_col_b = st.columns(2)
-    with download_col_a:
-        st.download_button(
-            "Descargar informe Markdown",
-            data=report_markdown,
-            file_name="recomendacion_riego.md",
-            mime="text/markdown",
-            on_click="ignore",
-            use_container_width=True,
-        )
-    with download_col_b:
-        st.download_button(
-            "Descargar informe JSON",
-            data=report_json,
-            file_name="recomendacion_riego.json",
-            mime="application/json",
-            on_click="ignore",
-            use_container_width=True,
-        )
+    render_report_download_links(
+        report_markdown=clean_report_markdown(recommendation),
+        report_json=json.dumps(clean_report_dict(recommendation), ensure_ascii=False, indent=2),
+    )
 
 
 def render_ml_prediction(ml_prediction: dict) -> None:
@@ -778,6 +814,25 @@ def render_ml_prediction(ml_prediction: dict) -> None:
             ("Lámina ML", f"{summary['avg_gross_mm_day']:.2f} mm/día", "Lámina media diaria predicha."),
         ]
     )
+
+
+def render_report_download_links(report_markdown: str, report_json: str) -> None:
+    markdown_href = build_download_href(report_markdown, "text/markdown")
+    json_href = build_download_href(report_json, "text/plain")
+    st.markdown(
+        f"""
+        <div class="download-grid">
+            <a class="download-link" href="{markdown_href}" download="recomendacion_riego.md">Descargar informe Markdown</a>
+            <a class="download-link" href="{json_href}" download="recomendacion_riego.json">Descargar informe JSON</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def build_download_href(content: str, mime_type: str) -> str:
+    encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+    return f"data:{mime_type};charset=utf-8;base64,{encoded}"
 
 
 def render_result_header(location: dict, plot: dict, period: dict) -> None:
@@ -834,6 +889,7 @@ def clean_report_dict(recommendation: dict) -> dict:
         "parcela": recommendation["plot"],
         "clima": recommendation["climate"],
         "recomendacion": recommendation["recommendation"],
+        "interpretacion_indicadores": REPORT_INDICATOR_DEFINITIONS,
         "metodo": recommendation["method"],
     }
     if "ml_prediction" in recommendation:
@@ -870,6 +926,12 @@ def clean_report_markdown(recommendation: dict) -> str:
         f"- ET0 media: {climate['et0_avg_mm_day']:.2f} mm/día",
         f"- ETc media del cultivo: {result['avg_etc_mm_day']:.2f} mm/día",
         f"- Lluvia total: {climate['rain_total_mm']:.2f} mm",
+        "",
+        "## Lectura de indicadores",
+        *[
+            f"- {item['indicador']}: {item['significado']}"
+            for item in clean["interpretacion_indicadores"]
+        ],
     ]
     if "prediccion_ml" in clean:
         summary = clean["prediccion_ml"]["resumen"]

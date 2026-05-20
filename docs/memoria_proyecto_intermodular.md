@@ -465,7 +465,28 @@ Para una parcela de 3.500 m2 de olivar en fase media, estación Sevilla Aeropuer
 
 Este resultado convierte los cálculos técnicos en una recomendación entendible para el cliente.
 
-### 4.5 Resultado del modelo ML/Keras
+### 4.5 Interpretación de los indicadores de la aplicación
+
+La interfaz muestra únicamente indicadores necesarios para que el usuario pueda decidir cuánta agua debe aplicar. Cada resultado se interpreta de la siguiente forma:
+
+| Indicador de la app | Unidad | Significado | Utilidad para el cliente |
+|---|---:|---|---|
+| Riego total | L | Volumen total recomendado para toda la parcela durante el periodo seleccionado. | Permite saber cuánta agua debe distribuirse en el conjunto de la explotación. |
+| Riego medio diario | L/día | Promedio diario del volumen total de riego de la parcela. | Facilita convertir la recomendación del periodo en una pauta diaria. |
+| Litros por planta | L/planta/día | Media diaria estimada por planta según la superficie y el marco medio del cultivo. | Ayuda a interpretar el resultado a escala de árbol o planta. |
+| Lámina diaria | mm/día | Profundidad media diaria de agua que debe aplicarse sobre el terreno. Un milímetro equivale a 1 L/m2. | Conecta la recomendación agronómica con una unidad habitual de riego. |
+| ET0 media | mm/día | Evapotranspiración de referencia media del periodo; representa la demanda atmosférica de agua. | Indica la presión climática: a mayor ET0, mayor tendencia a necesitar riego. |
+| Lluvia total | mm | Precipitación acumulada durante el periodo. | Reduce la necesidad de riego cuando parte de la lluvia se considera efectiva. |
+| ETc media | mm/día | Evapotranspiración del cultivo; se obtiene multiplicando ET0 por el coeficiente Kc del cultivo y fase. | Representa la demanda hídrica concreta del cultivo seleccionado. |
+| Plantas estimadas | plantas | Número aproximado de plantas calculado con la superficie y el marco medio del cultivo. | Sirve para expresar el resultado también en litros por planta. |
+| Riego total ML | L | Predicción del modelo para el volumen total del periodo. | Permite comparar la salida predictiva con el cálculo agronómico base. |
+| Riego medio ML | L/día | Predicción media diaria del modelo. | Resume la recomendación ML en una pauta diaria. |
+| Litros/planta ML | L/planta/día | Predicción media diaria por planta. | Traduce la salida ML a una unidad comprensible para el agricultor. |
+| Lámina ML | mm/día | Lámina media diaria predicha por el modelo. | Muestra la dosis ML antes de convertirla a litros. |
+
+La diferencia entre ET0 y ETc es clave: ET0 describe la demanda climática general, mientras que ETc ajusta esa demanda al cultivo real mediante Kc. La lámina diaria expresa la dosis en milímetros y el riego medio diario la transforma en litros para la superficie de la parcela.
+
+### 4.6 Resultado del modelo ML/Keras
 
 El modelo Keras se entrenó con un dataset de 168 filas y variables climáticas/agronómicas codificadas. La validación interna obtuvo:
 
@@ -478,7 +499,7 @@ El modelo Keras se entrenó con un dataset de 168 filas y variables climáticas/
 
 El modelo supera el umbral del 85 % si se interpreta la precisión como R2 en un problema de regresión. No obstante, este dato debe presentarse con rigor: el modelo aprende a reproducir el cálculo agronómico sobre el dataset generado, no una verdad de campo medida.
 
-### 4.6 Comparación entre cálculo agronómico y ML
+### 4.7 Comparación entre cálculo agronómico y ML
 
 En el caso de olivar para una parcela de 3.500 m2, la predicción ML fue muy cercana al cálculo base:
 
@@ -491,7 +512,7 @@ En el caso de olivar para una parcela de 3.500 m2, la predicción ML fue muy cer
 
 La diferencia es mínima porque el modelo se ha entrenado con etiquetas derivadas del motor agronómico. Este comportamiento es útil para validar la integración técnica de ML, pero el salto a un servicio real requiere incorporar datos reales de campo.
 
-### 4.7 Validación técnica
+### 4.8 Validación técnica
 
 El proyecto ha sido validado mediante pruebas unitarias. La última ejecución conocida produjo:
 
@@ -511,7 +532,7 @@ Las pruebas cubren:
 - Predicción desde modelo entrenado.
 - Selector nacional de estaciones AEMET.
 
-### 4.8 Capturas del sistema
+### 4.9 Capturas del sistema
 
 Las siguientes capturas corresponden a una ejecución real del prototipo. El escenario utilizado para documentar la prueba es: estación AEMET Sevilla Aeropuerto, periodo del 01/05/2024 al 07/05/2024, cultivo olivar, fase media, superficie de 3.500 m2 y modelo ML activado.
 
@@ -521,8 +542,8 @@ Las siguientes capturas corresponden a una ejecución real del prototipo. El esc
 | Figura 2 | Formulario principal de configuración de estación, fechas, cultivo y superficie. |
 | Figura 3 | Activación del modelo predictivo ML entrenado. |
 | Figura 4 | Resultados principales del cálculo agronómico de riego. |
-| Figura 5 | Predicción ML y comparación con el cálculo diario. |
-| Figura 6 | Detalle diario y exportación de resultados. |
+| Figura 5 | Predicción ML resumida y comparable con la recomendación base. |
+| Figura 6 | Descarga de informes en formato Markdown y JSON. |
 | Figura 7 | Ejecución de pruebas unitarias. |
 | Figura 8 | Evidencia de control de versiones y repositorio GitHub. |
 
@@ -546,9 +567,9 @@ Las siguientes capturas corresponden a una ejecución real del prototipo. El esc
 
 ![Predicción ML](capturas/figura_04_prediccion_ml.png)
 
-**Figura 6. Detalle diario y exportación.**
+**Figura 6. Descarga de informes.**
 
-![Detalle diario](capturas/figura_05_detalle_diario.png)
+![Descarga de informes](capturas/figura_05_descarga_informes.png)
 
 **Figura 7. Pruebas unitarias superadas.**
 
