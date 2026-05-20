@@ -121,7 +121,7 @@ def main() -> None:
         time.sleep(2)
         screenshot(driver, "figura_03_resultados_principales.png", 600)
         screenshot_near_text(driver, "Predicción ML", "figura_04_prediccion_ml.png")
-        screenshot_near_text(driver, "Detalle diario", "figura_05_detalle_diario.png")
+        screenshot_near_text(driver, "Descargar informe Markdown", "figura_05_descarga_informes.png")
     finally:
         driver.quit()
 

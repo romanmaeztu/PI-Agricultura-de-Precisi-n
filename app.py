@@ -13,7 +13,6 @@ from irrigation_advisor.aemet_client import AemetClient
 from irrigation_advisor.cli import (
     build_single_crop_report,
     recommendation_to_dict,
-    recommendation_to_markdown,
     resolve_station_from_args,
     weather_days_from_export,
 )
@@ -47,6 +46,7 @@ def main() -> None:
     )
     apply_theme()
     render_hero()
+    st.session_state.setdefault("last_recommendation", None)
 
     st.markdown('<div class="section-kicker">Configuración del escenario</div>', unsafe_allow_html=True)
     source_options = ["Cache local", "CSV local", "AEMET API"]
@@ -171,9 +171,6 @@ def main() -> None:
             use_container_width=True,
         )
 
-    if not submitted:
-        render_empty_state()
-
     if submitted:
         args = build_args(
             station=station,
@@ -199,7 +196,12 @@ def main() -> None:
             st.error(str(exc))
             return
 
-        render_recommendation(recommendation)
+        st.session_state["last_recommendation"] = recommendation
+
+    if st.session_state["last_recommendation"] is None:
+        render_empty_state()
+    else:
+        render_recommendation(st.session_state["last_recommendation"])
 
 
 def hero_background_data_uri() -> str:
@@ -742,10 +744,8 @@ def render_recommendation(recommendation: dict) -> None:
     if "ml_prediction" in recommendation:
         render_ml_prediction(recommendation["ml_prediction"])
 
-    st.markdown("### Detalle diario")
-    st.dataframe(format_daily_rows(recommendation["daily"]), use_container_width=True, hide_index=True)
-
-    report_markdown = recommendation_to_markdown(recommendation)
+    report_markdown = clean_report_markdown(recommendation)
+    report_json = json.dumps(clean_report_dict(recommendation), ensure_ascii=False, indent=2)
     download_col_a, download_col_b = st.columns(2)
     with download_col_a:
         st.download_button(
@@ -753,22 +753,22 @@ def render_recommendation(recommendation: dict) -> None:
             data=report_markdown,
             file_name="recomendacion_riego.md",
             mime="text/markdown",
+            on_click="ignore",
             use_container_width=True,
         )
     with download_col_b:
         st.download_button(
             "Descargar informe JSON",
-            data=json.dumps(recommendation, ensure_ascii=False, indent=2),
+            data=report_json,
             file_name="recomendacion_riego.json",
             mime="application/json",
+            on_click="ignore",
             use_container_width=True,
         )
 
 
 def render_ml_prediction(ml_prediction: dict) -> None:
     summary = ml_prediction["summary"]
-    model = ml_prediction["model"]
-    st.markdown('<div class="ml-box">', unsafe_allow_html=True)
     st.markdown("### Predicción ML")
     render_metric_cards(
         [
@@ -778,19 +778,6 @@ def render_ml_prediction(ml_prediction: dict) -> None:
             ("Lámina ML", f"{summary['avg_gross_mm_day']:.2f} mm/día", "Lámina media diaria predicha."),
         ]
     )
-
-    metrics = model.get("metrics") or {}
-    if metrics:
-        st.caption(
-            "Modelo {model_type}. MAE {mae} mm; RMSE {rmse} mm; R2 {r2}.".format(
-                model_type=model["model_type"],
-                mae=format_optional_metric(metrics.get("mae_mm")),
-                rmse=format_optional_metric(metrics.get("rmse_mm")),
-                r2=format_optional_metric(metrics.get("r2")),
-            )
-        )
-    st.dataframe(format_ml_daily_rows(ml_prediction["daily"]), use_container_width=True, hide_index=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_result_header(location: dict, plot: dict, period: dict) -> None:
@@ -839,31 +826,73 @@ def render_context_strip(items: list[tuple[str, str]]) -> None:
     st.markdown("".join(html), unsafe_allow_html=True)
 
 
-def format_daily_rows(rows: list[dict]) -> list[dict]:
-    return [
-        {
-            "Fecha": row["date"],
-            "ET0 (mm)": row["et0_mm"],
-            "Lluvia (mm)": row["rain_mm"],
-            "ETc cultivo (mm)": row["etc_mm"],
-            "Riego bruto (mm)": row["gross_irrigation_mm"],
-            "Litros parcela": row["liters_total"],
-            "Litros/planta": row["liters_per_plant"],
+def clean_report_dict(recommendation: dict) -> dict:
+    report = {
+        "servicio": "recomendacion_riego",
+        "localizacion": recommendation["location"],
+        "periodo": recommendation["period"],
+        "parcela": recommendation["plot"],
+        "clima": recommendation["climate"],
+        "recomendacion": recommendation["recommendation"],
+        "metodo": recommendation["method"],
+    }
+    if "ml_prediction" in recommendation:
+        report["prediccion_ml"] = {
+            "resumen": recommendation["ml_prediction"]["summary"],
+            "nota": recommendation["ml_prediction"].get("note"),
         }
-        for row in rows
-    ]
+    return report
 
 
-def format_ml_daily_rows(rows: list[dict]) -> list[dict]:
-    return [
-        {
-            "Fecha": row["date"],
-            "Lámina ML (mm)": row["predicted_gross_irrigation_mm"],
-            "Litros parcela ML": row["predicted_liters_total"],
-            "Litros/planta ML": row["predicted_liters_per_plant"],
-        }
-        for row in rows
+def clean_report_markdown(recommendation: dict) -> str:
+    clean = clean_report_dict(recommendation)
+    location = clean["localizacion"]
+    period = clean["periodo"]
+    plot = clean["parcela"]
+    climate = clean["clima"]
+    result = clean["recomendacion"]
+    lines = [
+        "# Informe de recomendación de riego",
+        "",
+        "## Escenario",
+        f"- Localización: {location.get('province') or 'N/D'} - {location.get('station_name') or location.get('station') or 'N/D'}",
+        f"- Periodo: {period['start']} a {period['end']} ({period['days']} días)",
+        f"- Cultivo: {format_crop(plot['crop'])} ({format_stage(plot['stage'])})",
+        f"- Superficie: {plot['area_m2']:,.0f} m²",
+        "",
+        "## Recomendación principal",
+        f"- Riego total del periodo: {result['total_liters']:,.0f} L",
+        f"- Riego medio diario: {result['avg_liters_day']:,.0f} L/día",
+        f"- Litros por planta: {format_liters(result['avg_liters_plant_day'])}/día",
+        f"- Lámina diaria: {result['avg_gross_mm_day']:.2f} mm/día",
+        "",
+        "## Datos climáticos resumen",
+        f"- ET0 media: {climate['et0_avg_mm_day']:.2f} mm/día",
+        f"- ETc media del cultivo: {result['avg_etc_mm_day']:.2f} mm/día",
+        f"- Lluvia total: {climate['rain_total_mm']:.2f} mm",
     ]
+    if "prediccion_ml" in clean:
+        summary = clean["prediccion_ml"]["resumen"]
+        lines.extend(
+            [
+                "",
+                "## Predicción ML",
+                f"- Riego total ML: {summary['total_liters']:,.0f} L",
+                f"- Riego medio ML: {summary['avg_liters_day']:,.0f} L/día",
+                f"- Litros por planta ML: {format_liters(summary['avg_liters_plant_day'])}/día",
+                f"- Lámina ML: {summary['avg_gross_mm_day']:.2f} mm/día",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## Método",
+            f"- Fórmula: {clean['metodo']['formula']}",
+            f"- Nota: {clean['metodo']['note']}",
+            "",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def format_crop(value: str) -> str:
@@ -885,12 +914,6 @@ def format_optional_number(value: object) -> str:
         return "N/D"
     if isinstance(value, (int, float)):
         return f"{value:,.0f}"
-    return str(value)
-
-
-def format_optional_metric(value: object) -> str:
-    if value is None:
-        return "N/D"
     return str(value)
 
 
