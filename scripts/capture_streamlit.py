@@ -74,18 +74,20 @@ def screenshot(driver: webdriver.Chrome, name: str, y: int = 0) -> None:
 
 def screenshot_near_text(driver: webdriver.Chrome, text: str, name: str) -> None:
     element = WebDriverWait(driver, 20).until(
-        EC.presence_of_element_located((By.XPATH, f"//*[normalize-space()='{text}']"))
+        EC.presence_of_element_located(
+            (By.XPATH, f"//*[contains(normalize-space(), '{text}') and not(.//*[contains(normalize-space(), '{text}')])]")
+        )
     )
     driver.execute_script(
         """
         const el = arguments[0];
+        el.scrollIntoView({block: 'start', inline: 'nearest'});
+        window.scrollBy(0, -80);
         const container = document.querySelector('section[data-testid="stMain"]');
         if (container) {
           const elTop = el.getBoundingClientRect().top;
           const containerTop = container.getBoundingClientRect().top;
           container.scrollTop = Math.max(0, container.scrollTop + elTop - containerTop - 80);
-        } else {
-          el.scrollIntoView({block: 'start'});
         }
         """,
         element,
@@ -107,7 +109,7 @@ def main() -> None:
         driver.get(URL)
         wait_ready(driver)
         screenshot(driver, "figura_00_selector_estacion_aemet.png", 0)
-        screenshot(driver, "figura_01_formulario_configuracion.png", 260)
+        screenshot_near_text(driver, "Parcela y cultivo", "figura_01_formulario_configuracion.png")
 
         click_button(driver, "Calcular recomendación de riego")
         try:
@@ -119,8 +121,8 @@ def main() -> None:
             body = driver.find_element(By.TAG_NAME, "body").text
             raise RuntimeError(body[:2000]) from exc
         time.sleep(2)
-        screenshot(driver, "figura_03_resultados_principales.png", 600)
-        screenshot_near_text(driver, "Predicción ML", "figura_04_prediccion_ml.png")
+        screenshot_near_text(driver, "Olivar en SEVILLA", "figura_03_resultados_principales.png")
+        screenshot_near_text(driver, "Predicci", "figura_04_prediccion_ml.png")
         screenshot_near_text(driver, "Descargar informe Markdown", "figura_05_descarga_informes.png")
     finally:
         driver.quit()

@@ -12,6 +12,7 @@ import irrigation_advisor.cli as cli_module
 from app import (
     ALL_PROVINCES,
     filter_station_options,
+    filter_station_options_by_query,
     province_default_index,
     station_default_index,
     station_option_label,
@@ -755,10 +756,12 @@ class CalculatorTests(unittest.TestCase):
 
         sevilla = filter_station_options(stations=stations, province="SEVILLA")
         all_stations = filter_station_options(stations=stations, province=ALL_PROVINCES)
+        query_matches = filter_station_options_by_query(stations=all_stations, query="cordoba")
         labels = [station_option_label(station) for station in all_stations]
 
         self.assertEqual(len(sevilla), 1)
         self.assertEqual(sevilla[0]["indicativo"], "5783")
+        self.assertEqual(query_matches[0]["indicativo"], "5402")
         self.assertIn("SEVILLA | SEVILLA AEROPUERTO | 5783", labels)
         self.assertEqual(province_default_index([ALL_PROVINCES, "SEVILLA"], preferred=ALL_PROVINCES), 0)
         self.assertEqual(station_default_index(labels, preferred="SEVILLA AEROPUERTO"), 1)

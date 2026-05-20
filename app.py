@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import unicodedata
 from datetime import date
 from html import escape
 from pathlib import Path
@@ -25,6 +26,9 @@ from irrigation_advisor.weather_cache import AemetCache, DEFAULT_CACHE_DB
 DEFAULT_WEATHER_FILE = "data/demo/aemet_sevilla_mayo_2024.csv"
 DEFAULT_MODEL_DIR = "models/riego_predictivo"
 DEFAULT_CACHE_FILE = DEFAULT_CACHE_DB
+CSV_DEMO_STATION_ID = "5783"
+CSV_DEMO_PROVINCE = "SEVILLA"
+CSV_DEMO_STATION_NAME = "SEVILLA AEROPUERTO"
 ALL_PROVINCES = "Todas las provincias"
 STAGE_LABELS = {
     "inicio": "Inicio",
@@ -82,10 +86,10 @@ def main() -> None:
     st.markdown('<div class="section-kicker">Configuración del escenario</div>', unsafe_allow_html=True)
     source_options = ["Cache local", "CSV local", "AEMET API"]
     source_index = 1 if Path(DEFAULT_WEATHER_FILE).exists() else (0 if Path(DEFAULT_CACHE_FILE).exists() else 2)
-    station = ""
-    province = "SEVILLA"
-    station_name = "AEROPUERTO"
-    with st.expander("Origen de datos y estación meteorológica", expanded=False):
+    station = CSV_DEMO_STATION_ID
+    province = CSV_DEMO_PROVINCE
+    station_name = CSV_DEMO_STATION_NAME
+    with st.expander("Origen de datos y estación meteorológica", expanded=True):
         source = st.radio(
             "Datos climáticos",
             source_options,
@@ -96,15 +100,25 @@ def main() -> None:
         if source in {"Cache local", "AEMET API"}:
             station, province, station_name = render_station_selector(source=source)
         else:
-            st.info("Modo de demostración estable con CSV local versionado.")
+            st.info(
+                "Modo de demostración estable con CSV local versionado. "
+                "El inventario nacional se puede consultar debajo, pero el cálculo CSV queda fijado a "
+                f"{CSV_DEMO_STATION_NAME} ({CSV_DEMO_STATION_ID}) porque el archivo de demo contiene esa estación."
+            )
+            render_station_inventory_from_cache()
 
     with st.form("recommendation_form"):
         st.markdown("### Parcela y cultivo")
         location_col, date_col, crop_col = st.columns([1.1, 1, 1])
         with location_col:
             if source == "CSV local":
-                province = st.text_input("Provincia", value="SEVILLA", key="csv_province")
-                station_name = st.text_input("Zona o estación de referencia", value="AEROPUERTO", key="csv_station_name")
+                st.text_input(
+                    "Estación de cálculo (CSV local)",
+                    value=f"{province} | {station_name} ({station})",
+                    disabled=True,
+                    key="csv_station_display",
+                    help="El CSV de demostración contiene datos climáticos de Sevilla Aeropuerto.",
+                )
             else:
                 st.text_input(
                     "Estación seleccionada",
@@ -158,7 +172,7 @@ def main() -> None:
                 station = st.text_input(
                     "Indicativo AEMET",
                     value=station,
-                    disabled=source != "CSV local",
+                    disabled=True,
                     help="Código técnico de la estación meteorológica.",
                 )
                 cache_file = st.text_input(
@@ -571,10 +585,71 @@ def render_station_selector(source: str) -> tuple[str, str, str]:
     )
     selected_station = station_by_label[selected_label]
     st.caption(f"Estación seleccionada: {selected_station['nombre']} ({selected_station['indicativo']})")
+    render_station_inventory_table(
+        stations=filtered_stations,
+        total_count=len(stations),
+        note="Inventario visible según el filtro de provincia seleccionado.",
+    )
     return (
         selected_station["indicativo"],
         selected_station["provincia"],
         selected_station["nombre"],
+    )
+
+
+def render_station_inventory_from_cache() -> None:
+    try:
+        stations = load_cached_station_inventory()
+    except Exception as exc:  # noqa: BLE001 - Streamlit should show a user-facing fallback.
+        st.warning(f"No se pudo cargar el inventario nacional desde la caché local: {exc}")
+        return
+    if not stations:
+        st.warning("La caché local no contiene el inventario de estaciones AEMET.")
+        return
+
+    st.markdown("#### Inventario nacional AEMET")
+    st.caption(
+        "Consulta de estaciones de toda España. En modo CSV local solo se calcula con Sevilla Aeropuerto, "
+        "pero el inventario completo queda visible para justificar que el servicio está pensado para escalar a cualquier zona."
+    )
+    provinces = [ALL_PROVINCES] + sorted({item["provincia"] for item in stations if item["provincia"]})
+    filter_col, search_col = st.columns([1, 1.2])
+    with filter_col:
+        province = st.selectbox(
+            "Ver provincia",
+            options=provinces,
+            index=province_default_index(provinces, preferred=ALL_PROVINCES),
+            key="csv_inventory_province_filter",
+        )
+    with search_col:
+        query = st.text_input(
+            "Buscar estación",
+            value="",
+            placeholder="Nombre o indicativo",
+            key="csv_inventory_search",
+        )
+
+    filtered = filter_station_options(stations=stations, province=province)
+    if query.strip():
+        filtered = filter_station_options_by_query(filtered, query=query)
+    render_station_inventory_table(
+        stations=filtered,
+        total_count=len(stations),
+        note="Listado consultivo. No modifica la estación de cálculo del CSV local.",
+    )
+
+
+def render_station_inventory_table(
+    stations: list[dict[str, str | float | None]],
+    total_count: int,
+    note: str,
+) -> None:
+    st.caption(f"{len(stations)} estaciones mostradas de {total_count}. {note}")
+    st.dataframe(
+        format_station_inventory_rows(stations),
+        use_container_width=True,
+        hide_index=True,
+        height=260,
     )
 
 
@@ -620,6 +695,32 @@ def filter_station_options(
     )
 
 
+def filter_station_options_by_query(
+    stations: list[dict[str, str | float | None]],
+    query: str,
+) -> list[dict[str, str | float | None]]:
+    normalized_query = normalize_station_text(query)
+    return [
+        station
+        for station in stations
+        if normalized_query in normalize_station_text(station["nombre"])
+        or normalized_query in normalize_station_text(station["indicativo"])
+    ]
+
+
+def format_station_inventory_rows(stations: list[dict[str, str | float | None]]) -> list[dict[str, object]]:
+    return [
+        {
+            "Provincia": station["provincia"] or "N/D",
+            "Estación": station["nombre"] or "N/D",
+            "Indicativo": station["indicativo"] or "N/D",
+            "Latitud": station["latitude_deg"],
+            "Longitud": station["longitude_deg"],
+        }
+        for station in stations
+    ]
+
+
 def station_option_label(station: dict[str, str | float | None]) -> str:
     return "{provincia} | {nombre} | {indicativo}".format(
         provincia=station["provincia"] or "N/D",
@@ -633,6 +734,13 @@ def station_sort_key(station: dict[str, str | float | None]) -> tuple[str, str, 
         str(station["provincia"] or ""),
         str(station["nombre"] or ""),
         str(station["indicativo"] or ""),
+    )
+
+
+def normalize_station_text(value: object) -> str:
+    text = str(value or "").strip().lower()
+    return "".join(
+        char for char in unicodedata.normalize("NFD", text) if unicodedata.category(char) != "Mn"
     )
 
 
