@@ -1,10 +1,10 @@
-# Simulación de parcela: demostración de cálculo y predicción
+# Simulación de parcela: validación funcional de cálculo y predicción
 
 ## 1. Objetivo
 
-Esta simulación demuestra que el sistema puede recibir una localización, una superficie y un cultivo, y devolver una recomendación de riego defendible.
+Esta simulación verifica que el sistema puede recibir una localización, una superficie y un cultivo, y devolver una recomendación de riego técnicamente justificable.
 
-El caso se plantea como una parcela de ejemplo. No representa una finca real validada en campo, sino una demostración funcional del servicio.
+El caso se plantea como una parcela de ejemplo. No representa una finca real validada en campo, sino una validación funcional del servicio.
 
 ## 2. Escenario simulado
 
@@ -14,7 +14,7 @@ El caso se plantea como una parcela de ejemplo. No representa una finca real val
 | Localización climática | Sevilla Aeropuerto |
 | Estación AEMET | `5783` |
 | Provincia | Sevilla |
-| Fuente de datos | CSV local de demo generado desde AEMET |
+| Fuente de datos | CSV local de validación generado desde AEMET |
 | Periodo climático | 2024-05-01 a 2024-05-07 |
 | Cultivo | Olivar |
 | Fase fenológica | Media |
@@ -26,7 +26,7 @@ El caso se plantea como una parcela de ejemplo. No representa una finca real val
 | Lluvia efectiva | 80% de la lluvia registrada |
 | Modelo ML | `models/riego_predictivo_keras` |
 
-La simulación usa `CSV local` para evitar nuevas peticiones a AEMET durante la demostración.
+La simulación usa `CSV local` para evitar nuevas peticiones a AEMET durante la validación.
 
 ## 3. Comando ejecutado
 
@@ -89,7 +89,7 @@ litros_totales = 3,13 * 3500 = 10.943,33 L
 litros_por_planta = 3,13 * 8 = 25,01 L/planta
 ```
 
-Este resultado coincide con el detalle diario generado por la aplicación.
+Este resultado coincide con el detalle diario calculado por el motor agronómico.
 
 ## 6. Resultados del periodo
 
@@ -162,9 +162,9 @@ La diferencia acumulada es muy baja en este ejemplo porque el modelo ha aprendid
 | 2024-05-06 | 4,08 | 14.279,99 | 32,64 |
 | 2024-05-07 | 4,69 | 16.415,01 | 37,52 |
 
-## 10. Demostración de que funciona
+## 10. Validación funcional
 
-La simulación demuestra tres puntos:
+La simulación valida los siguientes puntos:
 
 | Comprobación | Evidencia |
 |---|---|

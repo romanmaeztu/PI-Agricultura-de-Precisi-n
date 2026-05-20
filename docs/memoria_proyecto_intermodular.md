@@ -7,7 +7,7 @@
 **Repositorio:** https://github.com/romanmaeztu/PI-Agricultura-de-Precisi-n  
 **Fecha:** Mayo de 2026  
 
-> Documento base para revisión académica. Los datos personales del centro y la validación final con el tutor deben completarse antes de la entrega.
+> Memoria técnica del proyecto. El documento describe el alcance implementado, la metodología seguida, los resultados obtenidos y las limitaciones actuales del prototipo.
 
 ## Tabla de contenidos
 
@@ -46,7 +46,7 @@ Desde el punto de vista agronómico, el riego se relaciona con la evapotranspira
 
 ### 1.3 Definición del problema
 
-El problema que se aborda es la dificultad de calcular de forma precisa y defendible la cantidad de agua que debe aplicarse a una parcela agrícola. En muchos casos, el riego se realiza mediante criterios generales, turnos fijos o estimaciones poco conectadas con los datos meteorológicos reales.
+El problema que se aborda es la dificultad de calcular de forma precisa y técnicamente justificable la cantidad de agua que debe aplicarse a una parcela agrícola. En muchos casos, el riego se realiza mediante criterios generales, turnos fijos o estimaciones poco conectadas con los datos meteorológicos reales.
 
 Esta situación puede producir dos efectos negativos:
 
@@ -77,7 +77,7 @@ Los objetivos específicos se plantean como una escalera: cada escalón permite 
 
 ### 1.5 Alcance del proyecto
 
-El proyecto se centra en un prototipo funcional. La versión desarrollada permite visualizar un inventario nacional de 920 estaciones AEMET y trabajar con estaciones de España. La validación principal se realiza sobre datos de la estación Sevilla Aeropuerto, porque el CSV local de demostración contiene esa estación versionada. La solución no sustituye una auditoría agronómica profesional, pero sí ofrece una base técnica para construir un servicio de recomendación y predicción de riego.
+El proyecto se centra en un prototipo funcional. La versión desarrollada permite visualizar un inventario nacional de 920 estaciones AEMET y trabajar con estaciones de España. La validación principal se realiza sobre datos de la estación Sevilla Aeropuerto, porque el CSV local reproducible contiene esa estación versionada. La solución no sustituye una auditoría agronómica profesional, pero sí ofrece una base técnica para construir un servicio de recomendación y predicción de riego.
 
 La principal limitación actual es que el modelo de Machine Learning se ha entrenado con datos históricos y etiquetas generadas a partir del cálculo agronómico. Para una operación comercial real, el siguiente paso sería calibrar el sistema con datos reales de riego aplicado, producción y validación de campo.
 
@@ -150,7 +150,7 @@ El proyecto no despliega BigQuery. Lo que sí entrega es una estructura de datos
 | Creación de dataset/tablas en BigQuery | No implementada. |
 | Ingesta automática en Google Cloud | No implementada. |
 
-Por tanto, BigQuery queda cerrado como alcance preparado pero no desplegado. En la entrega actual no se afirma que exista una infraestructura cloud funcionando.
+Por tanto, BigQuery queda cerrado como alcance preparado pero no desplegado. En la versión implementada no se declara una infraestructura cloud operativa.
 
 ### 2.7 Machine Learning, TensorFlow y Keras
 
@@ -219,7 +219,7 @@ El desarrollo se ha organizado en los siguientes bloques:
 | 1 | Modelado de cultivos y parcela. | Base agronómica del proyecto. |
 | 2 | Cálculo de riego trazable. | Conversión de clima y parcela en recomendación. |
 | 3 | Conexión con AEMET. | Uso de datos oficiales por estación y fechas. |
-| 4 | Exportación y resumen de resultados. | Generación de datos defendibles. |
+| 4 | Exportación y resumen de resultados. | Generación de datos trazables. |
 | 5 | Interfaz Streamlit. | Servicio usable por el cliente. |
 | 6 | Capa ML/Keras. | Predicción de riego a partir de históricos. |
 | 7 | Documentación y repositorio GitHub. | Entrega ordenada y reproducible. |
@@ -369,7 +369,7 @@ El siguiente Gantt resume la planificación por semanas. Se presenta como cronog
 | 5 | Exportación de comparativas y resúmenes. | CSV y Markdown de resultados. |
 | 6 | Desarrollo de interfaz Streamlit. | Servicio configurable para usuario. |
 | 7 | Implementación de ML/Keras. | Modelo predictivo entrenado. |
-| 8 | Pruebas, documentación y GitHub. | Proyecto preparado para entrega. |
+| 8 | Pruebas, documentación y GitHub. | Proyecto documentado, validado y versionado. |
 
 ### 3.12 ROI y viabilidad económica
 
@@ -413,7 +413,7 @@ El proyecto ha conseguido implementar las siguientes funcionalidades:
 
 - Visualización del inventario nacional de 920 estaciones AEMET.
 - Filtro de estaciones por provincia y nombre.
-- Cálculo estable en modo CSV local fijado a Sevilla Aeropuerto, al ser la estación disponible en el dataset versionado de demostración.
+- Cálculo estable en modo CSV local fijado a Sevilla Aeropuerto, al ser la estación disponible en el dataset versionado.
 - Descarga de datos diarios por estación y rango de fechas.
 - Cálculo de ET0 mediante Hargreaves-Samani cuando no se dispone de ET0 directa.
 - Configuración de cultivo, fase fenológica y superficie de parcela.
@@ -483,7 +483,7 @@ La interfaz muestra únicamente indicadores necesarios para que el usuario pueda
 | Riego total ML | L | Predicción del modelo para el volumen total del periodo. | Permite comparar la salida predictiva con el cálculo agronómico base. |
 | Riego medio ML | L/día | Predicción media diaria del modelo. | Resume la recomendación ML en una pauta diaria. |
 | Litros/planta ML | L/planta/día | Predicción media diaria por planta. | Traduce la salida ML a una unidad comprensible para el agricultor. |
-| Lámina ML | mm/día | Lámina media diaria predicha por el modelo. | Muestra la dosis ML antes de convertirla a litros. |
+| Lámina ML | mm/día | Lámina media diaria predicha por el modelo. | Expresa la dosis estimada por ML antes de convertirla a litros. |
 
 La diferencia entre ET0 y ETc es clave: ET0 describe la demanda climática general, mientras que ETc ajusta esa demanda al cultivo real mediante Kc. La lámina diaria expresa la dosis en milímetros y el riego medio diario la transforma en litros para la superficie de la parcela.
 
@@ -535,7 +535,7 @@ Las pruebas cubren:
 
 ### 4.9 Capturas del sistema
 
-Las siguientes capturas corresponden a una ejecución real del prototipo. El escenario utilizado para documentar la prueba es: estación AEMET Sevilla Aeropuerto, periodo del 01/05/2024 al 07/05/2024, cultivo olivar, fase media, superficie de 3.500 m2 y modelo ML activado. La interfaz permite consultar el inventario nacional de 920 estaciones AEMET; en modo CSV local, el cálculo queda fijado a Sevilla Aeropuerto porque es la estación incluida en el dataset de demostración.
+Las siguientes capturas corresponden a una ejecución real del prototipo. El escenario utilizado para documentar la prueba es: estación AEMET Sevilla Aeropuerto, periodo del 01/05/2024 al 07/05/2024, cultivo olivar, fase media, superficie de 3.500 m2 y modelo ML activado. La interfaz permite consultar el inventario nacional de 920 estaciones AEMET; en modo CSV local, el cálculo queda fijado a Sevilla Aeropuerto porque es la estación incluida en el dataset versionado.
 
 | Figura | Evidencia aportada |
 |---:|---|
@@ -598,7 +598,7 @@ Las siguientes capturas corresponden a una ejecución real del prototipo. El esc
 
 El proyecto ha evolucionado desde una idea inicial de cálculo de riego hacia un prototipo de servicio predictivo. La solución permite seleccionar una zona de España mediante estaciones AEMET, configurar una parcela y obtener una recomendación de riego comprensible.
 
-La principal fortaleza del trabajo es que combina una base agronómica trazable con una capa de Machine Learning. Esto evita que el modelo sea una caja negra sin justificación y permite explicar de dónde salen los resultados.
+La principal fortaleza del trabajo es que combina una base agronómica trazable con una capa de Machine Learning. Esto evita presentar el modelo como un sistema opaco y permite justificar el origen de los resultados.
 
 ### 5.2 Conclusiones según los objetivos específicos
 
@@ -608,7 +608,7 @@ Las conclusiones se ordenan siguiendo la misma escalera definida en la introducc
 |---:|---|
 | 1 | La estructura de datos climáticos, de cultivo y de parcela queda definida y alineada con el cálculo de riego. |
 | 2 | La conexión con AEMET permite trabajar con estaciones reales, datos diarios y un flujo ETL reproducible. |
-| 3 | El cálculo agronómico ofrece una recomendación defendible en litros, litros por planta y milímetros de riego. |
+| 3 | El cálculo agronómico ofrece una recomendación técnicamente justificable en litros, litros por planta y milímetros de riego. |
 | 4 | La comparación entre olivar, cítricos y almendro demuestra que el cultivo modifica de forma significativa la demanda hídrica. |
 | 5 | La capa ML/Keras queda integrada y validada como aproximación al cálculo agronómico, aunque requiere datos reales de campo para uso profesional. |
 | 6 | La interfaz Streamlit transforma el cálculo técnico en un servicio entendible para un cliente. |
@@ -655,7 +655,7 @@ Las mejoras más importantes serían:
 
 ### 5.6 Cierre
 
-El proyecto demuestra que es posible construir un servicio de recomendación de riego apoyado en datos oficiales, reglas agronómicas y aprendizaje automático. La versión actual es un prototipo funcional y defendible. Su valor principal está en la estructura: cada módulo puede ampliarse sin romper el sistema completo.
+El proyecto demuestra que es posible construir un servicio de recomendación de riego apoyado en datos oficiales, reglas agronómicas y aprendizaje automático. La versión actual es un prototipo funcional, trazable y reproducible. Su valor principal está en la estructura: cada módulo puede ampliarse sin romper el sistema completo.
 
 ## 6. Referencias
 
@@ -782,10 +782,10 @@ El Product Backlog recoge las funcionalidades necesarias para alcanzar el objeti
 |---|---|---|---|
 | Sprint 1 | Base agronómica | Definir cultivos, ET0, Kc y fórmula de riego. | Motor de cálculo inicial. |
 | Sprint 2 | Datos AEMET | Implementar cliente API, búsqueda de estaciones y ETL. | Datos diarios por estación. |
-| Sprint 3 | Comparativas | Añadir tres cultivos, exportaciones y resumen. | CSV/Markdown defendibles. |
+| Sprint 3 | Comparativas | Añadir tres cultivos, exportaciones y resumen. | CSV/Markdown trazables. |
 | Sprint 4 | Servicio cliente | Crear interfaz Streamlit y formulario de parcela. | App local funcional. |
 | Sprint 5 | Machine Learning | Generar dataset ML, entrenar Keras y medir resultados. | Modelo predictivo. |
-| Sprint 6 | Calidad y entrega | Añadir pruebas, memoria, GitHub, ética, Gantt y anexos. | Proyecto documentado. |
+| Sprint 6 | Calidad y documentación | Añadir pruebas, memoria, GitHub, ética, Gantt y anexos. | Proyecto documentado. |
 
 ### Anexo F. Licencia documental
 

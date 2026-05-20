@@ -1,8 +1,8 @@
-# Guion de defensa del proyecto
+# Exposición técnica del proyecto
 
 ## 1. Apertura
 
-El proyecto desarrolla un prototipo de servicio predictivo de riego para agricultura de precisión. La idea es que un cliente pueda elegir una zona, una parcela y un cultivo, y obtener una recomendación clara de cuánta agua debe aplicar.
+El proyecto desarrolla un prototipo de servicio predictivo de riego para agricultura de precisión. El sistema permite seleccionar una zona, una parcela y un cultivo para obtener una recomendación clara de cuánta agua debe aplicarse.
 
 El sistema se apoya en datos meteorológicos oficiales de AEMET, parámetros agronómicos de cultivo y una capa de Machine Learning.
 
@@ -47,13 +47,13 @@ litros_por_planta = riego_bruto * marco_m2_por_planta
 
 La ET0 procede de AEMET o se estima con Hargreaves-Samani cuando es necesario. El Kc depende del cultivo y de la fase fenológica.
 
-## 6. Explicación de la app
+## 6. Interfaz de la aplicación
 
 La app permite:
 
 - Elegir fuente de datos: caché local, CSV local o AEMET API.
 - Ver el inventario nacional AEMET y filtrar estaciones por provincia o nombre.
-- Elegir estación AEMET; en la demo con CSV local se usa Sevilla Aeropuerto porque el dataset versionado contiene esa estación.
+- Elegir estación AEMET; en el modo CSV local reproducible se usa Sevilla Aeropuerto porque el dataset versionado contiene esa estación.
 - Elegir fechas.
 - Elegir cultivo y fase.
 - Introducir superficie de la parcela.
@@ -97,15 +97,15 @@ La salida del modelo es una lámina de riego en milímetros. Después se convier
 
 El entrenamiento actual usa históricos AEMET y una etiqueta agronómica calculada por el propio motor del proyecto. Por tanto, el modelo aprende la demanda esperada según la referencia técnica, no el comportamiento real de un agricultor concreto.
 
-Frase defendible:
+Delimitación técnica:
 
 ```text
 El modelo predice la demanda hídrica esperada; para saber si un agricultor riega bien o mal habría que calibrarlo con riegos reales aplicados, estado del cultivo y producción.
 ```
 
-## 8. Qué no se ha implementado
+## 8. Alcance no implementado
 
-Es importante decirlo con claridad:
+El prototipo delimita de forma expresa los siguientes elementos:
 
 - IoT no está implementado; queda como mejora futura.
 - BigQuery no está desplegado; queda como referencia teórica/futura.
@@ -113,9 +113,9 @@ Es importante decirlo con claridad:
 - El sistema no calcula diseño hidráulico de goteros.
 - El modelo todavía no ha sido validado con datos reales de riego aplicado en campo.
 
-Esto no resta valor al proyecto; delimita bien el alcance.
+Esta delimitación evita atribuir al sistema funcionalidades no desarrolladas y facilita una valoración técnica rigurosa.
 
-## 9. Demo recomendada
+## 9. Procedimiento de demostración funcional
 
 1. Abrir Streamlit.
 2. Usar `CSV local`.
@@ -124,24 +124,24 @@ Esto no resta valor al proyecto; delimita bien el alcance.
 5. Elegir `olivar`, fase `media`, superficie `3500 m2`.
 6. Activar ML con `models/riego_predictivo`.
 7. Calcular recomendación.
-8. Explicar cada métrica.
-9. Cambiar cultivo a `cítricos` o `almendro` y mostrar que la demanda cambia.
+8. Revisar cada métrica.
+9. Cambiar cultivo a `cítricos` o `almendro` y comprobar que la demanda cambia.
 10. Descargar informe Markdown o JSON.
-11. Enseñar las pruebas unitarias superadas.
+11. Revisar las pruebas unitarias superadas.
 
-## 10. Preguntas probables del tribunal
+## 10. Cuestiones técnicas frecuentes
 
-| Pregunta | Respuesta breve |
+| Cuestión | Respuesta técnica |
 |---|---|
 | ¿Por qué AEMET? | Porque es una fuente oficial, pública y trazable de datos meteorológicos. |
 | ¿Por qué caché local? | Para no saturar la API y poder repetir cálculos sin depender de peticiones constantes. |
 | ¿Qué aporta ML si ya hay fórmula? | Permite convertir el cálculo trazable en una capa predictiva entrenable y ampliable con datos reales futuros. |
 | ¿El modelo ya es comercial? | Es un prototipo. Para uso comercial necesita validación con datos reales de campo. |
-| ¿Por qué quitar sensores IoT? | Porque no están implementados. Se mantienen como mejora futura para evitar defender algo que no existe. |
+| ¿Por qué quitar sensores IoT? | Porque no están implementados. Se mantienen como mejora futura para evitar declarar funcionalidades inexistentes. |
 | ¿Por qué no BigQuery? | Porque el volumen actual no lo exige y no se ha desplegado. El proyecto funciona con CSV/JSON y caché local. |
 | ¿Cómo se mide el agua? | En mm de lámina de riego y en litros convertidos por superficie. |
 | ¿Qué significa 1 mm de riego? | Equivale a 1 litro por metro cuadrado. |
 
 ## 11. Cierre
 
-La conclusión principal es que el proyecto consigue un prototipo funcional, reproducible y defendible. Permite pasar de datos meteorológicos oficiales a una recomendación de riego comprensible para un cliente, con una capa ML preparada para evolucionar cuando existan datos reales de campo.
+La conclusión principal es que el proyecto consigue un prototipo funcional, reproducible y técnicamente justificable. Permite pasar de datos meteorológicos oficiales a una recomendación de riego comprensible para un cliente, con una capa ML preparada para evolucionar cuando existan datos reales de campo.

@@ -80,7 +80,7 @@ Un criterio inicial podría ser:
 | Entre -15% y +15% | Riego aceptable |
 | Mayor que +15% | Exceso de riego |
 
-Pero este criterio debe defenderse como regla de referencia, no como verdad agronómica absoluta. Para convertirlo en un servicio real, habría que validarlo con técnicos y datos reales de parcelas.
+Este criterio debe interpretarse como una regla de referencia provisional, no como una verdad agronómica absoluta. Para convertirlo en un servicio real, sería necesario validarlo con técnicos y datos reales de parcelas.
 
 ## 6. Entrenamiento ejecutado
 
@@ -110,7 +110,7 @@ Estas métricas indican que el modelo aprende bien el patrón del dataset de eje
 El modelo aproxima correctamente la referencia agronómica usada como etiqueta.
 ```
 
-No debe defenderse como:
+No debe interpretarse como:
 
 ```text
 El modelo ya está validado con agricultores reales.
@@ -153,10 +153,10 @@ Para convertirlo en un servicio predictivo real, el dataset debería cambiar de 
 | `riego_bruto_mm` calculado por fórmula | `riego_optimo_mm` validado en campo |
 | Datos AEMET históricos | AEMET + registros reales de parcela |
 | Validación interna | Validación con campañas agrícolas reales |
-| Predicción demostrativa | Recomendación comercial calibrada |
+| Predicción del prototipo | Recomendación comercial calibrada |
 
 La estructura del proyecto ya permite ese salto. Lo que falta no es código base, sino datos reales de operación.
 
-## 9. Frase defendible para la memoria o exposición
+## 9. Síntesis técnica para documentación
 
 > El modelo ML del prototipo se entrena con históricos meteorológicos de AEMET y una etiqueta agronómica calculada, por lo que predice la demanda esperada de riego según cultivo, fase y localización. Para convertirlo en un servicio comercial plenamente validado, sería necesario calibrarlo con datos reales de riego aplicado, estado del cultivo y producción en parcelas reales.

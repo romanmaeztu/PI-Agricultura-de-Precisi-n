@@ -1,17 +1,17 @@
-# Sistema de recomendacion de riego con AEMET
+# Sistema de recomendación de riego con AEMET
 
-Este MVP calcula cuanto regar una parcela a partir de datos climaticos de AEMET, el cultivo elegido y la superficie indicada por el cliente. Es un primer escalon tecnico: antes de vender una prediccion, el calculo debe ser trazable y defendible.
+Este prototipo calcula cuánta agua debe aplicarse en una parcela a partir de datos climáticos de AEMET, el cultivo seleccionado y la superficie indicada. La solución prioriza un cálculo trazable, reproducible y comprensible antes de incorporar una explotación comercial del servicio predictivo.
 
-## Documentacion de entrega
+## Documentación técnica
 
-- Memoria final en Word: `docs/memoria_proyecto_intermodular.docx`.
-- Memoria editable en Markdown: `docs/memoria_proyecto_intermodular.md`.
-- Checklist de entrega: `docs/checklist_entrega_final.md`.
-- Guion de defensa: `docs/guion_defensa.md`.
-- Explicacion de ML, calibracion y entrenamiento: `docs/ml_calibracion_y_entrenamiento.md`.
-- Simulacion demostrativa de una parcela: `docs/simulacion_parcela_demo.md`.
-- Demo estable para la defensa: `docs/demo_presentacion_estable.md`.
-- Presentacion de defensa para jurado: `docs/presentacion_defensa_tfg_riego_jurado.pptx`.
+- Memoria técnica en Word: `docs/memoria_proyecto_intermodular.docx`.
+- Memoria base en Markdown: `docs/memoria_proyecto_intermodular.md`.
+- Estado de preparación del proyecto: `docs/checklist_entrega_final.md`.
+- Documento de exposición técnica: `docs/guion_defensa.md`.
+- Explicación de ML, calibración y entrenamiento: `docs/ml_calibracion_y_entrenamiento.md`.
+- Simulación funcional de una parcela: `docs/simulacion_parcela_demo.md`.
+- Demostración reproducible del sistema: `docs/demo_presentacion_estable.md`.
+- Presentación académica del proyecto: `docs/presentacion_defensa_tfg_riego_jurado.pptx`.
 - Capturas de la interfaz: `docs/capturas/`.
 
 ## Logica de calculo
@@ -150,7 +150,7 @@ Ejecutar la app:
 python -m streamlit run app.py
 ```
 
-La interfaz permite consultar 920 estaciones del inventario AEMET de España mediante filtro por provincia y nombre, además de cultivo y superficie. Puede trabajar con AEMET API, caché local o con un CSV climático ya exportado. Para la defensa se recomienda usar `CSV local` con `data/demo/aemet_sevilla_mayo_2024.csv`; en ese modo el cálculo queda fijado a Sevilla Aeropuerto porque el CSV de demo contiene esa estación.
+La interfaz permite consultar 920 estaciones del inventario AEMET de España mediante filtro por provincia y nombre, además de cultivo y superficie. Puede trabajar con AEMET API, caché local o con un CSV climático ya exportado. Para una ejecución reproducible se utiliza `CSV local` con `data/demo/aemet_sevilla_mayo_2024.csv`; en ese modo el cálculo queda fijado a Sevilla Aeropuerto porque el CSV contiene esa estación.
 
 ## Capa predictiva ML/Keras
 
@@ -444,7 +444,7 @@ python -m unittest discover -s tests -v
 - `irrigation_efficiency`: eficiencia aplicada para pasar de riego neto a riego bruto.
 - `area_m2`: superficie de la parcela usada para convertir milimetros en litros.
 
-## Limites del MVP
+## Límites del prototipo
 
 - No sustituye una validacion agronomica en campo.
 - Los valores de `Kc` y marco por planta son valores iniciales; deben ajustarse con bibliografia y datos reales de la parcela.

@@ -95,15 +95,15 @@ def main() -> None:
             source_options,
             horizontal=True,
             index=source_index,
-            help="La demo estable usa CSV local; la cache local evita nuevas peticiones y la API consulta AEMET directamente.",
+            help="El CSV local permite una ejecución reproducible; la caché local evita nuevas peticiones y la API consulta AEMET directamente.",
         )
         if source in {"Cache local", "AEMET API"}:
             station, province, station_name = render_station_selector(source=source)
         else:
             st.info(
-                "Modo de demostración estable con CSV local versionado. "
+                "Modo reproducible con CSV local versionado. "
                 "El inventario nacional se puede consultar debajo, pero el cálculo CSV queda fijado a "
-                f"{CSV_DEMO_STATION_NAME} ({CSV_DEMO_STATION_ID}) porque el archivo de demo contiene esa estación."
+                f"{CSV_DEMO_STATION_NAME} ({CSV_DEMO_STATION_ID}) porque el archivo contiene esa estación."
             )
             render_station_inventory_from_cache()
 
@@ -117,7 +117,7 @@ def main() -> None:
                     value=f"{province} | {station_name} ({station})",
                     disabled=True,
                     key="csv_station_display",
-                    help="El CSV de demostración contiene datos climáticos de Sevilla Aeropuerto.",
+                    help="El CSV local contiene datos climáticos de Sevilla Aeropuerto.",
                 )
             else:
                 st.text_input(
