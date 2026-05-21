@@ -1,0 +1,3 @@
+modelo,target,mae_mm,rmse_mm,r2,filas_validacion
+lineal_ridge,riego_bruto_mm,0.0704,0.0918,0.9755,4
+keras_mlp,riego_bruto_mm,0.0913,0.118,0.9595,4

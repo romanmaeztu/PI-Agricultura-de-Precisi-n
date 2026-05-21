@@ -1,0 +1,7 @@
+grupo,variable,uso
+Localizacion,"estacion, provincia",Identifica la zona climatica de origen AEMET.
+Fecha,"fecha, day_sin, day_cos",Representa el momento del año y permite codificar estacionalidad.
+Clima,"ET0, lluvia, Tmin, Tmax, Tmedia",Describe la demanda atmosferica y la precipitacion disponible.
+Cultivo,"cultivo, fase, Kc",Ajusta la demanda climatica a cada cultivo.
+Parcela,"marco_m2_por_planta, eficiencia_riego, lluvia_efectiva_ratio",Convierte la necesidad neta en dosis bruta y litros por planta.
+Salida,riego_bruto_mm,Variable objetivo que aprende el modelo.

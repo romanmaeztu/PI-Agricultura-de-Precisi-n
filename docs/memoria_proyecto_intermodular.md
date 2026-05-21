@@ -437,6 +437,7 @@ El proyecto ha conseguido implementar las siguientes funcionalidades:
 | `tests/test_calculator.py` | Pruebas unitarias. |
 | `data/resultados/` | Resultados generados localmente. |
 | `models/` | Modelos entrenados localmente. |
+| `docs/ml_proceso/` | Evidencias del proceso ML: código, tablas, gráficas y capturas. |
 
 ### 4.3 Resultados de comparativa de cultivos
 

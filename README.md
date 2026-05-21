@@ -9,6 +9,7 @@ Este prototipo calcula cuánta agua debe aplicarse en una parcela a partir de da
 - Estado de preparación del proyecto: `docs/checklist_entrega_final.md`.
 - Documento de exposición técnica: `docs/guion_defensa.md`.
 - Explicación de ML, calibración y entrenamiento: `docs/ml_calibracion_y_entrenamiento.md`.
+- Evidencias completas del proceso ML: `docs/ml_proceso/README.md`.
 - Simulación funcional de una parcela: `docs/simulacion_parcela_demo.md`.
 - Demostración reproducible del sistema: `docs/demo_presentacion_estable.md`.
 - Presentación académica del proyecto: `docs/presentacion_defensa_tfg_riego_jurado.pptx`.
