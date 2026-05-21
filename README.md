@@ -12,8 +12,23 @@ Este prototipo calcula cuánta agua debe aplicarse en una parcela a partir de da
 - Evidencias completas del proceso ML: `docs/ml_proceso/README.md`.
 - Simulación funcional de una parcela: `docs/simulacion_parcela_demo.md`.
 - Demostración reproducible del sistema: `docs/demo_presentacion_estable.md`.
+- Despliegue web en Streamlit Cloud: `docs/despliegue_streamlit_cloud.md`.
 - Presentación académica del proyecto: `docs/presentacion_defensa_tfg_riego_jurado.pptx`.
 - Capturas de la interfaz: `docs/capturas/`.
+
+## Demo web
+
+El proyecto está preparado para desplegarse en Streamlit Community Cloud desde GitHub.
+
+Configuración de despliegue:
+
+- Repositorio: `romanmaeztu/PI-Agricultura-de-Precisi-n`.
+- Rama: `main`.
+- Archivo principal: `app.py`.
+- Dependencias: `requirements.txt`.
+- Dataset demo versionado: `data/demo/aemet_sevilla_enero_junio_2024.csv`.
+
+Guía de despliegue: `docs/despliegue_streamlit_cloud.md`.
 
 ## Logica de calculo
 
