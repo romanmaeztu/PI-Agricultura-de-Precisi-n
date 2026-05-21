@@ -119,7 +119,7 @@ Esta delimitación evita atribuir al sistema funcionalidades no desarrolladas y 
 
 1. Abrir Streamlit.
 2. Usar `CSV local`.
-3. Usar `data/demo/aemet_sevilla_mayo_2024.csv`.
+3. Usar `data/demo/aemet_sevilla_enero_junio_2024.csv`.
 4. Mostrar el inventario nacional AEMET y seleccionar estación `5783`, Sevilla Aeropuerto.
 5. Elegir `olivar`, fase `media`, superficie `3500 m2`.
 6. Activar ML con `models/riego_predictivo`.

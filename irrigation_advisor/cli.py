@@ -810,9 +810,10 @@ def unique_stations(stations: list[Station]) -> list[Station]:
 
 
 def load_weather_from_args(args: argparse.Namespace) -> tuple[list[WeatherDay], str, str | None, str | None]:
-    if args.weather_file:
+    weather_file = getattr(args, "weather_file", None)
+    if weather_file:
         return weather_days_from_export(
-            input_file=args.weather_file,
+            input_file=weather_file,
             station_id=args.station,
             province=args.province,
             station_name=args.station_name,

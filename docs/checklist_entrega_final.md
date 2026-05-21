@@ -78,7 +78,7 @@ Si el puerto 8501 está ocupado, Streamlit propondrá otro puerto.
 
 1. Abrir la app Streamlit.
 2. Elegir `CSV local` para evitar saturar AEMET durante la exposición.
-3. Usar el archivo `data/demo/aemet_sevilla_mayo_2024.csv`.
+3. Usar el archivo `data/demo/aemet_sevilla_enero_junio_2024.csv`.
 4. Mostrar el inventario nacional AEMET y seleccionar estación, fechas, cultivo, fase y superficie.
 5. Activar el modelo ML para mostrar la capa predictiva.
 6. Pulsar `Calcular recomendación`.

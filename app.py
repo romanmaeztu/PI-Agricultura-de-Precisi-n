@@ -23,7 +23,7 @@ from irrigation_advisor.models import CROP_DEFAULTS
 from irrigation_advisor.weather_cache import AemetCache, DEFAULT_CACHE_DB
 
 
-DEFAULT_WEATHER_FILE = "data/demo/aemet_sevilla_mayo_2024.csv"
+DEFAULT_WEATHER_FILE = "data/demo/aemet_sevilla_enero_junio_2024.csv"
 DEFAULT_MODEL_DIR = "models/riego_predictivo"
 DEFAULT_CACHE_FILE = DEFAULT_CACHE_DB
 CSV_DEMO_STATION_ID = "5783"

@@ -38,7 +38,7 @@ Si Streamlit propone un puerto distinto a `8501`, usar el enlace que muestre la 
 | Campo | Valor |
 |---|---|
 | Datos climáticos | CSV local |
-| CSV climático | `data/demo/aemet_sevilla_mayo_2024.csv` |
+| CSV climático | `data/demo/aemet_sevilla_enero_junio_2024.csv` |
 | Indicativo AEMET | `5783` |
 | Provincia | `SEVILLA` |
 | Nombre de estación | `AEROPUERTO` |
@@ -52,7 +52,7 @@ Si Streamlit propone un puerto distinto a `8501`, usar el enlace que muestre la 
 | Modelo ML | activado |
 | Directorio modelo ML | `models/riego_predictivo` |
 
-Esta configuración no realiza llamadas nuevas a AEMET. Usa un CSV versionado y un modelo ligero versionado para asegurar estabilidad. La app muestra el inventario nacional de estaciones AEMET, pero en modo CSV local el cálculo queda fijado a Sevilla Aeropuerto porque el dataset local solo contiene esa estación.
+Esta configuración no realiza llamadas nuevas a AEMET. Usa un CSV semestral versionado y un modelo ligero versionado para asegurar estabilidad. La app muestra el inventario nacional de estaciones AEMET, pero en modo CSV local el cálculo queda fijado a Sevilla Aeropuerto porque el dataset local solo contiene esa estación.
 
 ## Secuencia funcional
 
@@ -94,6 +94,30 @@ Con la misma localización, fechas y superficie:
 
 La diferencia se explica porque cada cultivo aplica automáticamente sus parámetros agronómicos, especialmente el `Kc` y el marco de plantación.
 
+## Escenario para demostrar lluvia efectiva
+
+Con el mismo CSV local puede mostrarse una semana lluviosa:
+
+| Campo | Valor |
+|---|---|
+| Fecha inicial | `2024-03-27` |
+| Fecha final | `2024-04-02` |
+| Cultivo | `olivar` |
+| Superficie | `3500` m2 |
+
+Resultados esperados:
+
+| Indicador | Resultado aproximado |
+|---|---:|
+| Lluvia total | 106,80 mm |
+| ET0 media | 2,72 mm/día |
+| ETc media | 1,91 mm/día |
+| Riego total del periodo | 18.620 L |
+| Riego medio diario | 2.660 L/día |
+| Lámina diaria | 0,76 mm/día |
+
+Este escenario permite explicar que los días con lluvia suficiente quedan con riego recomendado igual a cero. La fórmula diaria aplicada es `riego neto = max(0, ETc - lluvia efectiva)`.
+
 ## Evidencias alternativas de funcionamiento
 
 Si Streamlit no estuviera disponible, la funcionalidad puede verificarse con evidencias locales ya documentadas:
@@ -108,7 +132,7 @@ Comando CLI equivalente:
 ```powershell
 python -m irrigation_advisor.cli predict-ml `
   --model-dir models/riego_predictivo `
-  --weather-file data/demo/aemet_sevilla_mayo_2024.csv `
+  --weather-file data/demo/aemet_sevilla_enero_junio_2024.csv `
   --province SEVILLA `
   --station-name AEROPUERTO `
   --start 2024-05-01 `

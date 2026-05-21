@@ -122,7 +122,7 @@ python -m irrigation_advisor.cli recommend `
   --station-name AEROPUERTO `
   --start 2024-05-01 `
   --end 2024-05-07 `
-  --weather-file data/demo/aemet_sevilla_mayo_2024.csv `
+  --weather-file data/demo/aemet_sevilla_enero_junio_2024.csv `
   --crop olivar `
   --stage media `
   --area-m2 3500 `
@@ -151,7 +151,9 @@ Ejecutar la app:
 python -m streamlit run app.py
 ```
 
-La interfaz permite consultar 920 estaciones del inventario AEMET de España mediante filtro por provincia y nombre, además de cultivo y superficie. Puede trabajar con AEMET API, caché local o con un CSV climático ya exportado. Para una ejecución reproducible se utiliza `CSV local` con `data/demo/aemet_sevilla_mayo_2024.csv`; en ese modo el cálculo queda fijado a Sevilla Aeropuerto porque el CSV contiene esa estación.
+La interfaz permite consultar 920 estaciones del inventario AEMET de España mediante filtro por provincia y nombre, además de cultivo y superficie. Puede trabajar con AEMET API, caché local o con un CSV climático ya exportado. Para una ejecución reproducible se utiliza `CSV local` con `data/demo/aemet_sevilla_enero_junio_2024.csv`; en ese modo el cálculo queda fijado a Sevilla Aeropuerto porque el CSV contiene esa estación.
+
+El CSV local cubre Sevilla Aeropuerto desde `2024-01-01` hasta `2024-06-30`. Para demostrar la reducción por lluvia efectiva en la defensa, puede usarse el periodo `2024-03-27` a `2024-04-02`, con 106,80 mm de lluvia acumulada.
 
 ## Capa predictiva ML/Keras
 
