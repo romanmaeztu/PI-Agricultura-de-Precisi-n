@@ -169,6 +169,20 @@ El servicio puede evolucionar a una recomendacion futura de siete dias si se con
 
 Si la prediccion solo aporta probabilidad de precipitacion y no lluvia en milimetros, la recomendacion debe mostrarse con incertidumbre o como escenario condicionado. Por ese motivo, la demo principal se mantiene sobre historicos AEMET reales y CSV reproducible, mientras que el pronostico futuro queda documentado como ampliacion inmediata.
 
+## Modelo comercial y ROI
+
+La venta final al cliente se plantea como un informe o mensaje periodico con la recomendacion de riego de su parcela para la siguiente semana o periodo solicitado. El servicio no vende diseno hidraulico ni automatizacion de goteros; vende decision tecnica: litros totales, litros diarios, litros por planta, lluvia considerada y observacion profesional.
+
+Supuestos de simulacion:
+
+- Informe semanal: `15 EUR`.
+- Pack mensual: `49 EUR`.
+- Revision interna: `0,5 h` por informe.
+- Coste interno estimado: `9 EUR/informe`.
+- Margen bruto estimado: `6 EUR/informe`.
+
+El ROI del cliente se calcula con ahorro de agua/energia y tiempo de revision ahorrado. En el escenario demo, con un riego tradicional simulado un 15 % superior a la recomendacion, el ROI semanal estimado es `38,9 %` y el ROI mensual con pack de 49 EUR es `70,0 %`. Son valores de simulacion: para una venta real deben sustituirse por facturas, consumo historico y tiempo real de revision.
+
 Instalar dependencias ML:
 
 ```powershell

@@ -394,27 +394,95 @@ El siguiente Gantt resume la planificación por semanas. Se presenta como cronog
 
 ### 3.12 ROI y viabilidad económica
 
-No se calcula un ROI monetario cerrado porque faltan datos reales de explotación: consumo histórico de riego tradicional, precio del agua, coste del servicio y ahorro confirmado en campo. Para evitar estimaciones no justificadas, el proyecto deja definido el método de cálculo:
+El ROI debe tratarse como una simulación económica, no como un resultado medido en campo. Faltan datos reales de explotación: consumo histórico de riego tradicional, precio real del agua, coste energético, tiempo real dedicado a revisión y ahorro confirmado en parcela. Para evitar conclusiones no justificadas, se separan dos niveles:
+
+- **ROI del cliente:** mide si al agricultor le compensa pagar el informe de recomendación.
+- **ROI del proveedor:** mide si el servicio puede venderse con margen después de revisar datos y preparar la recomendación.
+
+El método general de cálculo es:
 
 ```text
 ahorro_agua_L = riego_tradicional_L - riego_recomendado_L
 ahorro_agua_m3 = ahorro_agua_L / 1000
-ahorro_economico = ahorro_agua_m3 * precio_agua_m3
-ROI = ((ahorro_economico - coste_implantacion) / coste_implantacion) * 100
+ahorro_directo = ahorro_agua_m3 * coste_agua_energia_m3
+ahorro_tiempo = horas_revision_ahorradas * coste_hora_revision
+beneficio_cliente = ahorro_directo + ahorro_tiempo
+ROI_cliente = ((beneficio_cliente - precio_servicio) / precio_servicio) * 100
 ```
 
 La aplicación ya ofrece la variable necesaria para alimentar este análisis: litros recomendados por parcela, cultivo y periodo. Con datos reales de consumo previo, el ROI puede calcularse sin modificar el sistema.
+
+#### Supuestos comerciales utilizados
+
+Los siguientes importes son supuestos de simulación para explicar el modelo de negocio. Deben sustituirse por facturas reales y tarifas reales del cliente:
+
+| Variable | Valor usado | Justificación |
+|---|---:|---|
+| Exceso de riego tradicional | 15 % sobre la recomendación | Escenario prudente para simular riego tradicional no optimizado. |
+| Coste conjunto agua + energía | 0,40 EUR/m3 | Supuesto operativo para valorar el ahorro directo. |
+| Tiempo de revisión ahorrado al cliente | 1 h/semana | Tiempo dedicado a revisar clima, lluvia y decisión de riego. |
+| Valor de la hora de revisión | 15 EUR/h | Referencia interna coherente con el presupuesto del proyecto. |
+| Precio del informe semanal | 15 EUR/informe | Venta final: mensaje o informe con la recomendación de riego del periodo. |
+| Pack mensual | 49 EUR/mes | Cuatro recomendaciones semanales con precio agrupado. |
+| Coste interno del proveedor | 9 EUR/informe | 30 min de revisión técnica a 15 EUR/h + 1,50 EUR de gestión/API. |
+
+#### Simulación de ROI para el cliente
+
+Con la parcela de demostración de 3.500 m2, el sistema recomienda 97.156 L para la semana del 01/05/2024 al 07/05/2024. Si el método tradicional aplicara un 15 % más de agua, el ahorro sería:
+
+| Concepto | Cálculo | Resultado |
+|---|---:|---:|
+| Riego recomendado |  | 97,16 m3 |
+| Riego tradicional simulado | 97,16 m3 * 1,15 | 111,73 m3 |
+| Ahorro de agua | 111,73 - 97,16 | 14,57 m3 |
+| Ahorro directo | 14,57 m3 * 0,40 EUR/m3 | 5,83 EUR |
+| Ahorro de revisión | 1 h * 15 EUR/h | 15,00 EUR |
+| Beneficio semanal estimado | 5,83 + 15,00 | 20,83 EUR |
+| Precio informe semanal |  | 15,00 EUR |
+| ROI cliente semanal | (20,83 - 15,00) / 15,00 | 38,9 % |
+
+En modalidad mensual, con cuatro informes y precio de 49 EUR/mes, el beneficio estimado sería 83,32 EUR y el ROI mensual aproximado sería:
+
+```text
+ROI_mensual = ((83,32 - 49,00) / 49,00) * 100 = 70,0 %
+```
+
+Para parcelas mayores, el ahorro directo aumenta porque los litros ahorrados crecen con la superficie. En una hectárea con el mismo escenario climático y de cultivo, el ahorro por agua y energía sería mayor y el ROI del cliente mejoraría.
+
+#### Simulación de margen para el proveedor
+
+El servicio se plantea como una venta recurrente de recomendación, no como instalación hidráulica. El entregable sería un informe, correo o mensaje al cliente con:
+
+- Litros totales recomendados.
+- Litros medios diarios.
+- Litros por planta.
+- Lluvia prevista o registrada.
+- Observación técnica y advertencia de incertidumbre si procede.
+
+| Concepto | Valor |
+|---|---:|
+| Precio venta informe semanal | 15,00 EUR |
+| Coste revisión técnica | 7,50 EUR |
+| Coste gestión/API | 1,50 EUR |
+| Coste total interno | 9,00 EUR |
+| Margen bruto por informe | 6,00 EUR |
+| ROI proveedor por informe | 66,7 % |
+
+La lectura correcta es que el ROI es positivo bajo estos supuestos, pero no debe presentarse como ahorro real confirmado. El proyecto demuestra cómo calcularlo y qué datos harían falta para validarlo: consumo histórico, facturas de agua/energía, tiempo real de revisión y comparación con campañas agrícolas reales.
 
 ### 3.13 Presupuesto estimado
 
 | Concepto | Cantidad | Coste unitario | Coste estimado |
 |---|---:|---:|---:|
 | Horas de análisis y desarrollo | 80 h | 15 EUR/h | 1.200 EUR |
+| Revisión técnica por informe de cliente | 0,5 h | 15 EUR/h | 7,50 EUR |
+| Gestión/API por informe | 1 | 1,50 EUR | 1,50 EUR |
 | Equipo informático propio | 1 | 0 EUR | 0 EUR |
 | Software libre utilizado | 1 | 0 EUR | 0 EUR |
-| Total estimado |  |  | 1.200 EUR |
+| Total prototipo |  |  | 1.200 EUR |
+| Coste operativo por informe |  |  | 9,00 EUR |
 
-El presupuesto corresponde al prototipo software desarrollado. No se incluyen sensores IoT ni costes cloud porque no forman parte del entregable implementado.
+El presupuesto principal corresponde al prototipo software desarrollado. El coste operativo por informe se añade para explicar cómo podría venderse el servicio al cliente. No se incluyen sensores IoT ni costes cloud porque no forman parte del entregable implementado.
 
 ### 3.14 Gestión ética y licencia del proyecto
 
@@ -679,7 +747,7 @@ Las principales dificultades han sido:
 - Diferenciar recomendación con históricos reales y pronóstico futuro a siete días.
 - Convertir resultados técnicos en una salida útil para un cliente.
 - Evitar que el objetivo de Machine Learning se presente como precisión absoluta cuando todavía no hay validación real de campo.
-- Plantear el ROI sin inventar datos económicos no medidos.
+- Plantear el ROI como simulación con supuestos explícitos, sin presentarlo como ahorro real medido.
 
 ### 5.5 Mejoras futuras
 

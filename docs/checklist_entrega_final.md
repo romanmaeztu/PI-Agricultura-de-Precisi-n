@@ -99,6 +99,8 @@ Si el puerto 8501 está ocupado, Streamlit propondrá otro puerto.
 | ¿IoT está implementado? | No. Se menciona solo como mejora futura. |
 | ¿Qué predice el ML? | Predice `riego_bruto_mm`, es decir, la lámina de riego recomendada antes de convertirla a litros. |
 | ¿Puede recomendar a siete días futuros? | La arquitectura está preparada, pero necesita una predicción meteorológica futura fiable. El ML no predice el clima por sí solo. |
+| ¿Cómo se vendería al cliente? | Como informe o mensaje semanal/mensual con litros recomendados, lluvia considerada y observación técnica. |
+| ¿El ROI es definitivo? | No. Es una simulación con supuestos explícitos; debe validarse con facturas, consumo previo y tiempo real de revisión. |
 | ¿Qué limitación principal tiene el modelo? | Ha aprendido sobre históricos AEMET y etiquetas generadas por el cálculo agronómico; para servicio comercial real requiere datos medidos en campo. |
 
 ## 7. Control de calidad previo a la presentación

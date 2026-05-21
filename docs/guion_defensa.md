@@ -118,7 +118,23 @@ El prototipo delimita de forma expresa los siguientes elementos:
 
 Esta delimitación evita atribuir al sistema funcionalidades no desarrolladas y facilita una valoración técnica rigurosa.
 
-## 9. Procedimiento de demostración funcional
+## 9. Modelo de servicio y ROI
+
+La venta final al cliente se plantea como un informe o mensaje periódico con la recomendación de riego para la parcela y el periodo elegido. No se vende como automatización de válvulas ni como instalación hidráulica.
+
+Supuestos usados para explicar la viabilidad:
+
+| Concepto | Valor |
+|---|---:|
+| Informe semanal | 15 EUR |
+| Pack mensual | 49 EUR |
+| Revisión técnica interna | 0,5 h |
+| Coste interno estimado | 9 EUR/informe |
+| Margen bruto por informe | 6 EUR |
+
+El ROI del cliente se calcula sumando ahorro directo de agua/energía y tiempo de revisión ahorrado. En la parcela demo, si el riego tradicional aplicara un 15 % más de agua, el ROI semanal estimado sería del 38,9 % y el ROI mensual con pack de 49 EUR sería del 70,0 %. Estos valores son una simulación; deben sustituirse por facturas y consumos reales para una venta comercial.
+
+## 10. Procedimiento de demostración funcional
 
 1. Abrir Streamlit.
 2. Usar `CSV local`.
@@ -132,7 +148,7 @@ Esta delimitación evita atribuir al sistema funcionalidades no desarrolladas y 
 10. Descargar informe Markdown o JSON.
 11. Revisar las pruebas unitarias superadas.
 
-## 10. Cuestiones técnicas frecuentes
+## 11. Cuestiones técnicas frecuentes
 
 | Cuestión | Respuesta técnica |
 |---|---|
@@ -140,12 +156,14 @@ Esta delimitación evita atribuir al sistema funcionalidades no desarrolladas y 
 | ¿Por qué caché local? | Para no saturar la API y poder repetir cálculos sin depender de peticiones constantes. |
 | ¿Qué aporta ML si ya hay fórmula? | Permite convertir el cálculo trazable en una capa predictiva entrenable y ampliable con datos reales futuros. |
 | ¿Puede recomendar la semana que viene? | Sí, si se conecta una predicción meteorológica futura fiable. El ML usaría esa predicción como entrada; no genera el clima por sí mismo. |
+| ¿Cómo se vendería el servicio? | Como informe o mensaje periódico con litros recomendados para la parcela y periodo solicitado. |
+| ¿El ROI es real o simulado? | Es simulado. Usa supuestos explícitos; para validarlo hacen falta facturas, consumo histórico y tiempo real de revisión. |
 | ¿El modelo ya es comercial? | Es un prototipo. Para uso comercial necesita validación con datos reales de campo. |
 | ¿Por qué quitar sensores IoT? | Porque no están implementados. Se mantienen como mejora futura para evitar declarar funcionalidades inexistentes. |
 | ¿Por qué no BigQuery? | Porque el volumen actual no lo exige y no se ha desplegado. El proyecto funciona con CSV/JSON y caché local. |
 | ¿Cómo se mide el agua? | En mm de lámina de riego y en litros convertidos por superficie. |
 | ¿Qué significa 1 mm de riego? | Equivale a 1 litro por metro cuadrado. |
 
-## 11. Cierre
+## 12. Cierre
 
 La conclusión principal es que el proyecto consigue un prototipo funcional, reproducible y técnicamente justificable. Permite pasar de datos meteorológicos oficiales a una recomendación de riego comprensible para un cliente, con una capa ML preparada para evolucionar cuando existan datos reales de campo.
