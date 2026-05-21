@@ -98,6 +98,7 @@ Si el puerto 8501 está ocupado, Streamlit propondrá otro puerto.
 | ¿BigQuery está desplegado? | No. Queda cerrado como referencia teórica/futura, no como implementación. |
 | ¿IoT está implementado? | No. Se menciona solo como mejora futura. |
 | ¿Qué predice el ML? | Predice `riego_bruto_mm`, es decir, la lámina de riego recomendada antes de convertirla a litros. |
+| ¿Puede recomendar a siete días futuros? | La arquitectura está preparada, pero necesita una predicción meteorológica futura fiable. El ML no predice el clima por sí solo. |
 | ¿Qué limitación principal tiene el modelo? | Ha aprendido sobre históricos AEMET y etiquetas generadas por el cálculo agronómico; para servicio comercial real requiere datos medidos en campo. |
 
 ## 7. Control de calidad previo a la presentación

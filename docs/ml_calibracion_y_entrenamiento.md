@@ -140,9 +140,9 @@ Resultado resumido:
 | Resultado | Valor |
 |---|---:|
 | Riego total agronómico | 97.156,11 L |
-| Riego total ML | 97.160,14 L |
-| Riego medio diario ML | 13.880,02 L/día |
-| Lámina media diaria ML | 3,97 mm/día |
+| Riego total ML | 94.522,69 L |
+| Riego medio diario ML | 13.503,24 L/día |
+| Lámina media diaria ML | 3,86 mm/día |
 
 ## 8. Cómo pasaría a modelo real
 
@@ -157,6 +157,26 @@ Para convertirlo en un servicio predictivo real, el dataset debería cambiar de 
 
 La estructura del proyecto ya permite ese salto. Lo que falta no es código base, sino datos reales de operación.
 
-## 9. Síntesis técnica para documentación
+## 9. Pronóstico a siete días
 
-> El modelo ML del prototipo se entrena con históricos meteorológicos de AEMET y una etiqueta agronómica calculada, por lo que predice la demanda esperada de riego según cultivo, fase y localización. Para convertirlo en un servicio comercial plenamente validado, sería necesario calibrarlo con datos reales de riego aplicado, estado del cultivo y producción en parcelas reales.
+El modelo podría utilizarse para estimar la recomendación de riego de la semana siguiente, pero necesita una entrada meteorológica futura. El ML no predice por sí mismo la lluvia ni la temperatura; esas variables deben proceder de una fuente de predicción meteorológica.
+
+Flujo propuesto:
+
+```text
+predicción meteorológica 7 días + cultivo + fase + superficie -> riego recomendado futuro
+```
+
+Condiciones necesarias:
+
+- Predicción diaria de temperatura máxima y mínima.
+- Predicción diaria de lluvia en milímetros o variable equivalente justificable.
+- Localización asociada a la parcela.
+- Aviso de incertidumbre si solo se dispone de probabilidad de precipitación.
+- Calibración posterior con riegos reales aplicados y respuesta del cultivo.
+
+Por tanto, el proyecto queda preparado para esta ampliación, pero la versión actual se defiende con datos históricos reales y resultados reproducibles.
+
+## 10. Síntesis técnica para documentación
+
+> El modelo ML del prototipo se entrena con históricos meteorológicos de AEMET y una etiqueta agronómica calculada, por lo que predice la demanda esperada de riego según cultivo, fase y localización. Para convertirlo en un servicio comercial plenamente validado, sería necesario calibrarlo con datos reales de riego aplicado, estado del cultivo y producción en parcelas reales. Para una recomendación futura a siete días, el modelo tendría que recibir predicción meteorológica diaria como entrada, ya que no predice el clima por sí mismo.

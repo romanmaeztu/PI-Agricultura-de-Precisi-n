@@ -81,6 +81,8 @@ El proyecto se centra en un prototipo funcional. La versión desarrollada permit
 
 La principal limitación actual es que el modelo de Machine Learning se ha entrenado con datos históricos y etiquetas generadas a partir del cálculo agronómico. Para una operación comercial real, el siguiente paso sería calibrar el sistema con datos reales de riego aplicado, producción y validación de campo.
 
+Respecto al pronóstico de la semana siguiente, la arquitectura queda preparada, pero no se presenta como funcionalidad principal cerrada. Para recomendar riego a siete días futuros sería necesario alimentar el modelo con predicciones meteorológicas futuras fiables, especialmente temperatura prevista, lluvia prevista y, cuando sea posible, ET0 estimada. El modelo ML no predice el clima por sí mismo; utiliza variables meteorológicas como entrada para estimar la demanda de riego.
+
 ## 2. Marco teórico
 
 ### 2.1 Agricultura de precisión
@@ -162,7 +164,7 @@ riego_bruto_mm
 
 TensorFlow proporciona el entorno de cómputo para aprendizaje automático [5], mientras que Keras facilita la construcción de redes neuronales mediante una API de alto nivel [6].
 
-El modelo implementado es una red neuronal multicapa:
+La arquitectura implementa dos opciones de entrenamiento: una red neuronal Keras/TensorFlow y una alternativa `linear_ridge` ligera para demostraciones reproducibles. La variante Keras se estructura como una red neuronal multicapa:
 
 - Capa de entrada con variables numéricas y categóricas codificadas.
 - Capa densa de 32 neuronas con activación ReLU.
@@ -171,7 +173,26 @@ El modelo implementado es una red neuronal multicapa:
 
 Al tratarse de un problema de regresión, la calidad del modelo se evalúa mediante MAE, RMSE y R2. El criterio académico de "precisión superior al 85%" se interpreta como R2 superior a 0,85.
 
-### 2.8 Visualización con Streamlit
+### 2.8 Pronóstico a siete días: alcance y limitaciones
+
+Una evolución lógica del sistema es convertir la recomendación histórica en una recomendación anticipada para los próximos siete días. Técnicamente, esto es posible si el sistema recibe predicciones meteorológicas futuras y las transforma al mismo formato que los datos históricos utilizados por el motor de cálculo y por el modelo ML.
+
+El flujo objetivo sería:
+
+```text
+predicción meteorológica futura + cultivo + fase + superficie -> recomendación de riego a siete días
+```
+
+La limitación principal es que Machine Learning no sustituye a la predicción meteorológica. Para estimar el riego de la próxima semana, el sistema necesitaría una fuente de pronóstico que proporcione, como mínimo:
+
+- Temperatura máxima y mínima prevista.
+- Precipitación prevista o, en su defecto, una estimación justificable de lluvia esperada.
+- Horizonte temporal diario.
+- Localización asociada a la parcela o municipio.
+
+Si la fuente solo ofrece probabilidad de precipitación y no lluvia en milímetros, el sistema no debe inventar el dato. En ese caso, la salida tendría que mostrarse como recomendación con incertidumbre o como escenario condicionado a lluvia prevista. Por tanto, el prototipo queda preparado para esta ampliación, pero la versión defendida se valida con históricos reales de AEMET y CSV local reproducible.
+
+### 2.9 Visualización con Streamlit
 
 Streamlit es un framework de Python orientado a crear aplicaciones web de datos de forma rápida [7]. En este proyecto se utiliza para construir la interfaz del servicio predictivo:
 
@@ -181,11 +202,11 @@ Streamlit es un framework de Python orientado a crear aplicaciones web de datos 
 - Visualización de resultados.
 - Activación opcional del modelo ML.
 
-### 2.9 Pruebas unitarias
+### 2.10 Pruebas unitarias
 
 La validación del prototipo se ha realizado con `unittest`, el framework de pruebas unitarias incluido en Python [8]. Las pruebas comprueban los cálculos principales, los perfiles de cultivos, la exportación de resultados, el entrenamiento del modelo y el selector de estaciones.
 
-### 2.10 Ética, datos y uso responsable de IA
+### 2.11 Ética, datos y uso responsable de IA
 
 El uso de IA en un sistema de recomendación agrícola debe tratarse como una herramienta de apoyo a la decisión, no como una autoridad absoluta. Las recomendaciones internacionales sobre ética de la IA destacan la necesidad de transparencia, supervisión humana, prevención de daños y responsabilidad en el uso de los datos [10]. En la Unión Europea, el Reglamento (UE) 2024/1689 establece un marco orientado a promover sistemas de IA fiables y centrados en la persona, con atención a la seguridad, los derechos fundamentales y la trazabilidad [11].
 
@@ -488,16 +509,18 @@ La interfaz muestra únicamente indicadores necesarios para que el usuario pueda
 
 La diferencia entre ET0 y ETc es clave: ET0 describe la demanda climática general, mientras que ETc ajusta esa demanda al cultivo real mediante Kc. La lámina diaria expresa la dosis en milímetros y el riego medio diario la transforma en litros para la superficie de la parcela.
 
-### 4.6 Resultado del modelo ML/Keras
+### 4.6 Resultado del modelo ML
 
-El modelo Keras se entrenó con un dataset de 168 filas y variables climáticas/agronómicas codificadas. La validación interna obtuvo:
+La versión demostrativa actual utiliza un modelo `linear_ridge` entrenado sobre el CSV semestral de Sevilla Aeropuerto (`2024-01-01` a `2024-06-30`). Esta decisión aporta estabilidad en la defensa y permite incluir semanas con lluvia real. El proyecto conserva la posibilidad de entrenar una variante Keras/TensorFlow, pero la demo principal utiliza el modelo ligero versionado por su reproducibilidad.
+
+El modelo se entrenó con un dataset de 546 filas y variables climáticas/agronómicas codificadas. La validación interna obtuvo:
 
 | Métrica | Resultado |
 |---|---:|
-| MAE | 0,0289 mm |
-| RMSE | 0,0381 mm |
-| R2 | 0,9975 |
-| Filas de validación | 33 |
+| MAE | 0,3164 mm |
+| RMSE | 0,5301 mm |
+| R2 | 0,9337 |
+| Filas de validación | 109 |
 
 El modelo supera el umbral del 85 % si se interpreta la precisión como R2 en un problema de regresión. No obstante, este dato debe presentarse con rigor: el modelo aprende a reproducir el cálculo agronómico sobre el dataset generado, no una verdad de campo medida.
 
@@ -507,14 +530,29 @@ En el caso de olivar para una parcela de 3.500 m2, la predicción ML fue muy cer
 
 | Indicador | Cálculo agronómico | Predicción ML |
 |---|---:|---:|
-| Riego total | 97.156,11 L | 97.160,07 L |
-| Riego medio diario | 13.879,44 L/día | 13.880,01 L/día |
-| Lámina media diaria | 3,97 mm/día | 3,97 mm/día |
-| Litros medios por planta | 31,72 L/planta/día | 31,72 L/planta/día |
+| Riego total | 97.156,11 L | 94.522,69 L |
+| Riego medio diario | 13.879,44 L/día | 13.503,24 L/día |
+| Lámina media diaria | 3,97 mm/día | 3,86 mm/día |
+| Litros medios por planta | 31,72 L/planta/día | 30,86 L/planta/día |
 
-La diferencia es mínima porque el modelo se ha entrenado con etiquetas derivadas del motor agronómico. Este comportamiento es útil para validar la integración técnica de ML, pero el salto a un servicio real requiere incorporar datos reales de campo.
+La diferencia se mantiene dentro de un rango razonable para una capa predictiva entrenada con etiquetas derivadas del motor agronómico. Este comportamiento es útil para validar la integración técnica de ML, pero el salto a un servicio real requiere incorporar datos reales de campo.
 
-### 4.8 Validación técnica
+### 4.8 Escenario de lluvia y preparación para pronóstico
+
+Para demostrar que la lluvia reduce el riego, se añadió al CSV local un periodo real con precipitación: Sevilla Aeropuerto del 27/03/2024 al 02/04/2024. En ese escenario se obtuvo:
+
+| Indicador | Resultado |
+|---|---:|
+| Lluvia total | 106,80 mm |
+| ET0 media | 2,72 mm/día |
+| ETc media | 1,91 mm/día |
+| Riego total del periodo | 18.620 L |
+| Riego medio diario | 2.660 L/día |
+| Lámina diaria | 0,76 mm/día |
+
+Durante los días con lluvia suficiente, el riego recomendado queda en 0 L porque la lluvia efectiva cubre la demanda del cultivo. Este mismo mecanismo sería el que permitiría trabajar con predicciones a siete días, siempre que la fuente meteorológica futura proporcione lluvia prevista y temperaturas diarias con calidad suficiente.
+
+### 4.9 Validación técnica
 
 El proyecto ha sido validado mediante pruebas unitarias. La última ejecución conocida produjo:
 
@@ -534,7 +572,7 @@ Las pruebas cubren:
 - Predicción desde modelo entrenado.
 - Selector nacional de estaciones AEMET con 920 estaciones visibles.
 
-### 4.9 Capturas del sistema
+### 4.10 Capturas del sistema
 
 Las siguientes capturas corresponden a una ejecución real del prototipo. El escenario utilizado para documentar la prueba es: estación AEMET Sevilla Aeropuerto, periodo del 01/05/2024 al 07/05/2024, cultivo olivar, fase media, superficie de 3.500 m2 y modelo ML activado. La interfaz permite consultar el inventario nacional de 920 estaciones AEMET; en modo CSV local, el cálculo queda fijado a Sevilla Aeropuerto porque es la estación incluida en el dataset versionado.
 
@@ -581,7 +619,7 @@ Las siguientes capturas corresponden a una ejecución real del prototipo. El esc
 
 ![Control de versiones](capturas/figura_07_control_versiones.png)
 
-### 4.9 Comparación con objetivos iniciales
+### 4.11 Comparación con objetivos iniciales
 
 | Escalón | Objetivo específico | Estado | Evidencia |
 |---:|---|---|---|
@@ -638,6 +676,7 @@ Las principales dificultades han sido:
 - Gestionar correctamente la API Key de AEMET sin subirla al repositorio.
 - Interpretar datos meteorológicos incompletos o con formatos distintos.
 - Diferenciar cálculo agronómico, predicción ML y validación real.
+- Diferenciar recomendación con históricos reales y pronóstico futuro a siete días.
 - Convertir resultados técnicos en una salida útil para un cliente.
 - Evitar que el objetivo de Machine Learning se presente como precisión absoluta cuando todavía no hay validación real de campo.
 - Plantear el ROI sin inventar datos económicos no medidos.
@@ -649,7 +688,8 @@ Las mejoras más importantes serían:
 - Integrar sensores IoT solo como mejora futura, si el servicio necesita datos de campo en tiempo real.
 - Desplegar BigQuery solo si el volumen de datos requiere una infraestructura cloud.
 - Entrenar el modelo con datos reales de riego aplicado y respuesta del cultivo.
-- Incorporar predicción meteorológica futura, no solo datos históricos.
+- Incorporar un modo de pronóstico a siete días cuando exista una fuente meteorológica futura con temperatura diaria y lluvia prevista en milímetros.
+- Mostrar avisos de incertidumbre cuando la predicción futura solo proporcione probabilidad de precipitación.
 - Añadir gestión de usuarios y parcelas.
 - Generar informes comerciales en PDF.
 - Desplegar el servicio en cloud.

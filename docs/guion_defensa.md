@@ -103,6 +103,8 @@ Delimitación técnica:
 El modelo predice la demanda hídrica esperada; para saber si un agricultor riega bien o mal habría que calibrarlo con riegos reales aplicados, estado del cultivo y producción.
 ```
 
+Respecto al pronóstico de la semana siguiente, el modelo no predice el clima por sí solo. Para recomendar riego a siete días futuros necesita recibir predicciones meteorológicas como entrada: temperatura diaria prevista, lluvia prevista y horizonte temporal. Con esos datos, el mismo flujo podría calcular ET0/ETc, descontar lluvia efectiva y generar una recomendación anticipada.
+
 ## 8. Alcance no implementado
 
 El prototipo delimita de forma expresa los siguientes elementos:
@@ -112,6 +114,7 @@ El prototipo delimita de forma expresa los siguientes elementos:
 - El suelo y la humedad inicial no forman parte del flujo principal de cálculo.
 - El sistema no calcula diseño hidráulico de goteros.
 - El modelo todavía no ha sido validado con datos reales de riego aplicado en campo.
+- El modo de pronóstico a siete días queda preparado como evolución, pero no se presenta como funcionalidad principal validada.
 
 Esta delimitación evita atribuir al sistema funcionalidades no desarrolladas y facilita una valoración técnica rigurosa.
 
@@ -136,6 +139,7 @@ Esta delimitación evita atribuir al sistema funcionalidades no desarrolladas y 
 | ¿Por qué AEMET? | Porque es una fuente oficial, pública y trazable de datos meteorológicos. |
 | ¿Por qué caché local? | Para no saturar la API y poder repetir cálculos sin depender de peticiones constantes. |
 | ¿Qué aporta ML si ya hay fórmula? | Permite convertir el cálculo trazable en una capa predictiva entrenable y ampliable con datos reales futuros. |
+| ¿Puede recomendar la semana que viene? | Sí, si se conecta una predicción meteorológica futura fiable. El ML usaría esa predicción como entrada; no genera el clima por sí mismo. |
 | ¿El modelo ya es comercial? | Es un prototipo. Para uso comercial necesita validación con datos reales de campo. |
 | ¿Por qué quitar sensores IoT? | Porque no están implementados. Se mantienen como mejora futura para evitar declarar funcionalidades inexistentes. |
 | ¿Por qué no BigQuery? | Porque el volumen actual no lo exige y no se ha desplegado. El proyecto funciona con CSV/JSON y caché local. |

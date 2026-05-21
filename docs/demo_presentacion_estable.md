@@ -148,3 +148,9 @@ python -m irrigation_advisor.cli predict-ml `
 ```text
 La demostración verifica que el prototipo transforma datos climáticos y parámetros de cultivo en una recomendación concreta de agua para una parcela. No depende del número de goteros, sino de la necesidad hídrica de la plantación.
 ```
+
+## Extensión prevista a siete días
+
+La demostración estable usa históricos AEMET para garantizar reproducibilidad. La arquitectura podría ampliarse a una recomendación futura de siete días conectando una fuente de predicción meteorológica. En ese caso, la app tomaría temperatura y lluvia previstas, calcularía ET0/ETc, descontaría lluvia efectiva y generaría la recomendación anticipada.
+
+Esta ampliación no se presenta como validación principal porque depende de la calidad de la predicción meteorológica disponible. Si la fuente solo entrega probabilidad de lluvia y no precipitación en milímetros, el sistema debe mostrar la recomendación como estimación con incertidumbre.

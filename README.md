@@ -163,6 +163,12 @@ Las variables hidraulicas del reparto no forman parte del objetivo del servicio.
 
 La capa agronomica sigue siendo la referencia trazable. La capa ML aprende sobre el historico generado/validado y permite ofrecer una prediccion como servicio. Cuando existan datos reales de riego aplicado en campo, la misma estructura puede sustituir la variable objetivo por una variable medida.
 
+## Pronostico a siete dias
+
+El servicio puede evolucionar a una recomendacion futura de siete dias si se conecta una fuente de prediccion meteorologica. La condicion tecnica es que el sistema reciba temperatura prevista y lluvia prevista por dia. El modelo ML no predice el clima por si solo; utiliza esas variables como entrada para estimar la lamina de riego y convertirla a litros.
+
+Si la prediccion solo aporta probabilidad de precipitacion y no lluvia en milimetros, la recomendacion debe mostrarse con incertidumbre o como escenario condicionado. Por ese motivo, la demo principal se mantiene sobre historicos AEMET reales y CSV reproducible, mientras que el pronostico futuro queda documentado como ampliacion inmediata.
+
 Instalar dependencias ML:
 
 ```powershell
