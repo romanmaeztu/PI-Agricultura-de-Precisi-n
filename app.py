@@ -210,6 +210,29 @@ def main() -> None:
                     disabled=not use_ml_prediction,
                 )
 
+            if source == "CSV local":
+                rainfall_source_note = (
+                    "En modo CSV local solo se pueden calcular fechas incluidas en el archivo cargado. "
+                    "Si se elige un periodo de invierno que no esté en ese CSV, no habrá datos suficientes."
+                )
+            else:
+                rainfall_source_note = (
+                    "En modo Cache local o AEMET API, el periodo seleccionado toma la lluvia registrada "
+                    "para esas fechas si está disponible en la fuente meteorológica."
+                )
+            st.markdown(
+                f"""
+                <div class="calculation-note">
+                    <strong>Lectura de los ajustes avanzados</strong>
+                    <p><b>Eficiencia de riego ({irrigation_efficiency:.2f})</b>: porcentaje del agua aplicada que se considera útil para el cultivo. Con {irrigation_efficiency:.2f}, de cada 100 L aplicados se estiman {irrigation_efficiency * 100:.0f} L aprovechables; por eso el sistema aumenta el riego bruto para compensar pérdidas.</p>
+                    <p><b>Lluvia efectiva ({effective_rainfall_ratio:.2f})</b>: parte de la lluvia registrada que se descuenta de la necesidad de riego. Con {effective_rainfall_ratio:.2f}, una lluvia de 10 mm descuenta {10 * effective_rainfall_ratio:.1f} mm; si se ajustara a 0,10, solo descontaría 1,0 mm.</p>
+                    <p><b>Fechas y lluvia</b>: al cambiar el periodo, se recalculan ET0, lluvia total, ETc y riego. La fórmula diaria es: riego neto = max(0, ETc - lluvia efectiva).</p>
+                    <p>{rainfall_source_note}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         submitted = st.form_submit_button(
             "Calcular recomendación de riego",
             type="primary",
@@ -361,13 +384,31 @@ def apply_theme() -> None:
             text-transform: uppercase;
             margin: 4px 0 10px;
         }}
-        .form-note, .result-note {{
+        .form-note, .result-note, .calculation-note {{
             background: #eef4ef;
             border-left: 4px solid var(--green);
             padding: 14px 16px;
             color: var(--ink);
             margin: 14px 0 10px;
             border-radius: 8px;
+        }}
+        .calculation-note {{
+            background: #f7faf3;
+            border-color: var(--blue);
+            margin-top: 18px;
+        }}
+        .calculation-note strong {{
+            display: block;
+            color: var(--ink);
+            margin-bottom: 8px;
+        }}
+        .calculation-note p {{
+            margin: 6px 0;
+            color: var(--muted);
+            line-height: 1.42;
+        }}
+        .calculation-note b {{
+            color: var(--ink);
         }}
         .empty-state {{
             margin-top: 22px;
