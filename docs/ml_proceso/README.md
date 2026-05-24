@@ -1,6 +1,6 @@
 # Proceso completo de Machine Learning
 
-Este apartado reúne las evidencias técnicas del proceso ML aplicado al proyecto: datos de entrada, variable objetivo, líneas de código relevantes, tablas generadas, gráficas y capturas de la interfaz.
+Este apartado reúne las evidencias técnicas del proceso ML aplicado al proyecto: datos de entrada, variable objetivo, líneas de código relevantes, tablas de resultados, gráficas y capturas de la interfaz.
 
 La finalidad es dejar documentado cómo se pasa de datos AEMET y variables de cultivo/parcela a una predicción de riego expresada en milímetros y posteriormente convertida a litros.
 
@@ -73,7 +73,7 @@ model = tf.keras.Sequential(
 )
 ```
 
-## 4. Tablas generadas
+## 4. Tablas de resultados
 
 | Tabla | Ruta | Contenido |
 |---|---|---|

@@ -1,6 +1,6 @@
 # Despliegue en Streamlit Community Cloud
 
-Este documento explica cómo publicar la aplicación para que pueda abrirse desde cualquier ordenador mediante una URL, sin tener que abrir Codex ni ejecutar el proyecto manualmente.
+Este documento explica cómo publicar la aplicación para que pueda abrirse desde cualquier ordenador mediante una URL, sin depender de una ejecución local del proyecto.
 
 ## Objetivo
 

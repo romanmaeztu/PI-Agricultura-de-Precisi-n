@@ -6,7 +6,7 @@ La documentación del proyecto queda organizada en los siguientes materiales:
 
 | Elemento | Ruta | Estado |
 |---|---|---|
-| Memoria en Word | `docs/memoria_proyecto_intermodular.docx` | Generada |
+| Memoria en Word | `docs/memoria_proyecto_intermodular.docx` | Disponible |
 | Memoria en Markdown | `docs/memoria_proyecto_intermodular.md` | Fuente editable |
 | Código de la app | `app.py` | Implementado |
 | Motor de cálculo | `irrigation_advisor/` | Implementado |
@@ -101,7 +101,7 @@ Si el puerto 8501 está ocupado, Streamlit propondrá otro puerto.
 | ¿Puede recomendar a siete días futuros? | La arquitectura está preparada, pero necesita una predicción meteorológica futura fiable. El ML no predice el clima por sí solo. |
 | ¿Cómo se vendería al cliente? | Como informe o mensaje semanal/mensual con litros recomendados, lluvia considerada y observación técnica. |
 | ¿El ROI es definitivo? | No. Es una simulación con supuestos explícitos; debe validarse con facturas, consumo previo y tiempo real de revisión. |
-| ¿Qué limitación principal tiene el modelo? | Ha aprendido sobre históricos AEMET y etiquetas generadas por el cálculo agronómico; para servicio comercial real requiere datos medidos en campo. |
+| ¿Qué limitación principal tiene el modelo? | Ha aprendido sobre históricos AEMET y etiquetas calculadas mediante criterio agronómico; para servicio comercial real requiere datos medidos en campo. |
 
 ## 7. Control de calidad previo a la presentación
 

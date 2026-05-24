@@ -79,7 +79,7 @@ Los objetivos específicos se plantean como una escalera: cada escalón permite 
 
 El proyecto se centra en un prototipo funcional. La versión desarrollada permite visualizar un inventario nacional de 920 estaciones AEMET y trabajar con estaciones de España. La validación principal se realiza sobre datos de la estación Sevilla Aeropuerto, porque el CSV local reproducible contiene esa estación versionada. La solución no sustituye una auditoría agronómica profesional, pero sí ofrece una base técnica para construir un servicio de recomendación y predicción de riego.
 
-La principal limitación actual es que el modelo de Machine Learning se ha entrenado con datos históricos y etiquetas generadas a partir del cálculo agronómico. Para una operación comercial real, el siguiente paso sería calibrar el sistema con datos reales de riego aplicado, producción y validación de campo.
+La principal limitación actual es que el modelo de Machine Learning se ha entrenado con datos históricos y etiquetas calculadas a partir del criterio agronómico. Para una operación comercial real, el siguiente paso sería calibrar el sistema con datos reales de riego aplicado, producción y validación de campo.
 
 Respecto al pronóstico de la semana siguiente, la arquitectura queda preparada, pero no se presenta como funcionalidad principal cerrada. Para recomendar riego a siete días futuros sería necesario alimentar el modelo con predicciones meteorológicas futuras fiables, especialmente temperatura prevista, lluvia prevista y, cuando sea posible, ET0 estimada. El modelo ML no predice el clima por sí mismo; utiliza variables meteorológicas como entrada para estimar la demanda de riego.
 
@@ -524,7 +524,7 @@ El proyecto ha conseguido implementar las siguientes funcionalidades:
 | `irrigation_advisor/ml.py` | Entrenamiento y predicción ML. |
 | `irrigation_advisor/cli.py` | Comandos de consola. |
 | `tests/test_calculator.py` | Pruebas unitarias. |
-| `data/resultados/` | Resultados generados localmente. |
+| `data/resultados/` | Resultados locales de ejecución. |
 | `models/` | Modelos entrenados localmente. |
 | `docs/ml_proceso/` | Evidencias del proceso ML: código, tablas, gráficas y capturas. |
 
@@ -590,7 +590,7 @@ El modelo se entrenó con un dataset de 546 filas y variables climáticas/agron�
 | R2 | 0,9337 |
 | Filas de validación | 109 |
 
-El modelo supera el umbral del 85 % si se interpreta la precisión como R2 en un problema de regresión. No obstante, este dato debe presentarse con rigor: el modelo aprende a reproducir el cálculo agronómico sobre el dataset generado, no una verdad de campo medida.
+El modelo supera el umbral del 85 % si se interpreta la precisión como R2 en un problema de regresión. No obstante, este dato debe presentarse con rigor: el modelo aprende a reproducir el cálculo agronómico sobre el dataset construido, no una verdad de campo medida.
 
 ### 4.7 Comparación entre cálculo agronómico y ML
 

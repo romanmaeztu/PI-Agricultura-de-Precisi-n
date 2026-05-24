@@ -435,7 +435,7 @@ def build_parser() -> argparse.ArgumentParser:
     summary.add_argument("--file-format", choices=["csv", "json", "markdown"], help="Si se omite, se infiere por extension.")
 
     train_ml = subparsers.add_parser("train-ml", help="Entrena un modelo predictivo con historicos AEMET exportados.")
-    train_ml.add_argument("--input-file", required=True, help="CSV/JSON generado por export-aemet-comparison.")
+    train_ml.add_argument("--input-file", required=True, help="CSV/JSON creado con export-aemet-comparison.")
     train_ml.add_argument("--model-dir", default="models/riego_predictivo")
     train_ml.add_argument("--backend", choices=["auto", "keras", "linear"], default="auto")
     train_ml.add_argument("--epochs", type=int, default=150)

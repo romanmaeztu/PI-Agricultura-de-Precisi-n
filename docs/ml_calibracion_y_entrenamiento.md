@@ -116,9 +116,9 @@ No debe interpretarse como:
 El modelo ya está validado con agricultores reales.
 ```
 
-## 7. Predicción generada
+## 7. Predicción obtenida
 
-Se ha generado una predicción para olivar, Sevilla Aeropuerto, del 1 al 7 de mayo de 2024:
+Se ha obtenido una predicción para olivar, Sevilla Aeropuerto, del 1 al 7 de mayo de 2024:
 
 ```powershell
 python -m irrigation_advisor.cli predict-ml `

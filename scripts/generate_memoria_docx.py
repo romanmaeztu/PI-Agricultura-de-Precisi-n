@@ -14,6 +14,17 @@ SOURCE = ROOT / "docs" / "memoria_proyecto_intermodular.md"
 TARGET = ROOT / "docs" / "memoria_proyecto_intermodular.docx"
 
 
+def set_document_properties(doc):
+    props = doc.core_properties
+    props.title = "Sistema de recomendación de riego con AEMET y Machine Learning"
+    props.subject = "Proyecto intermodular de agricultura de precisión"
+    props.author = "Román Maeztu"
+    props.last_modified_by = "Román Maeztu"
+    props.comments = ""
+    props.keywords = "riego, AEMET, Machine Learning, agricultura de precisión"
+    props.category = "Proyecto intermodular"
+
+
 def set_cell_shading(cell, fill):
     tc_pr = cell._tc.get_or_add_tcPr()
     shd = OxmlElement("w:shd")
@@ -129,6 +140,7 @@ def add_table(doc, rows):
 
 def convert_markdown_to_docx():
     doc = Document()
+    set_document_properties(doc)
     apply_document_styles(doc)
 
     lines = SOURCE.read_text(encoding="utf-8").splitlines()

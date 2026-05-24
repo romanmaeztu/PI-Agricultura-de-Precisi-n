@@ -176,7 +176,7 @@ El proyecto ya incluye una capa predictiva entrenable. El objetivo del modelo es
 
 Las variables hidraulicas del reparto no forman parte del objetivo del servicio. La recomendacion se centra en la necesidad hidrica: milimetros de riego, litros totales y litros por planta.
 
-La capa agronomica sigue siendo la referencia trazable. La capa ML aprende sobre el historico generado/validado y permite ofrecer una prediccion como servicio. Cuando existan datos reales de riego aplicado en campo, la misma estructura puede sustituir la variable objetivo por una variable medida.
+La capa agronomica sigue siendo la referencia trazable. La capa ML aprende sobre el historico construido y validado y permite ofrecer una prediccion como servicio. Cuando existan datos reales de riego aplicado en campo, la misma estructura puede sustituir la variable objetivo por una variable medida.
 
 ## Pronostico a siete dias
 

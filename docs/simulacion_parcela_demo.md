@@ -14,7 +14,7 @@ El caso se plantea como una parcela de ejemplo. No representa una finca real val
 | Localización climática | Sevilla Aeropuerto |
 | Estación AEMET | `5783` |
 | Provincia | Sevilla |
-| Fuente de datos | CSV local de validación generado desde AEMET |
+| Fuente de datos | CSV local de validación procedente de AEMET |
 | Periodo climático | 2024-05-01 a 2024-05-07 |
 | Cultivo | Olivar |
 | Fase fenológica | Media |
